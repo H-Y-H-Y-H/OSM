@@ -139,14 +139,14 @@ class OSM_Env(gym.Env):
         obs = self.get_obs()
 
         pos, _ = self.robot_location()
-        r = 2 * obs[1] - np.abs(obs[0])
-
+        # r = 2 * obs[1] - np.abs(obs[0]) - 0.5*np.abs(obs[5])
+        r = pos[1]
         done = self.check()
 
         self.log_obs.append(obs)
         self.log_action.append(a)
         
-        if self.count%100 ==0:
+        if self.count%100 == 0:
             np.savetxt(self.save_pth + "/log_obs.csv", np.asarray(self.log_obs))
             np.savetxt(self.save_pth + "/log_action.csv", np.asarray(self.log_action))
 

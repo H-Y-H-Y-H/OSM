@@ -38,7 +38,8 @@ def evaluate_RL(model, num_episodes=5, num_seq=4):
             if done == True:
                 print("fail")
                 break
-            episode_rewards += real_r[0]
+            episode_rewards = real_r
+
         np.savetxt("%s/action_list.csv" % log_path, np.asarray(action_list))
         all_episode_rewards.append(episode_rewards)
 
@@ -54,7 +55,7 @@ def train_agent():
     r_m_each_epoch = [mean_reward_before_train]
     r_s_each_epoch = [std_reward_before_train]
 
-    epoch_num = 313
+    epoch_num = 26
     best_r = -np.inf
 
     for epoch in range(epoch_num):
@@ -71,7 +72,7 @@ def train_agent():
         r_s_each_epoch.append(std_reward)
         print(mean_reward,std_reward, env.count)
 
-        if epoch % 50 == 0:
+        if epoch % 25 == 0:
             np.savetxt(log_path + "/reward_mean.csv", np.asarray(r_m_each_epoch))
             np.savetxt(log_path + "/reward_std.csv", np.asarray(r_s_each_epoch))
             model.save(log_path + "/model%d" % epoch)
@@ -83,7 +84,7 @@ def train_agent():
     plt.savefig(log_path+"rewards_plot.png")
 
 
-def collect_sm_data(step_num):
+def collect_sm_data(step_num,step_each_epoch = 6):
     S, A, NS = [], [], []
     obs = env.reset()
 
@@ -95,14 +96,16 @@ def collect_sm_data(step_num):
         NS.append(obs_)
         obs = np.copy(obs_)
 
-        if done or ((step +1)%100==0):
+        if done or ((step +1)%step_each_epoch==0):
             obs = env.reset()
             print(done,step)
 
     S, A, NS = np.array(S), np.array(A), np.array(NS)
-    np.savetxt(log_path + 'S%d.csv'%step_num, S)
-    np.savetxt(log_path + 'A%d.csv'%step_num, A)
-    np.savetxt(log_path + 'NS%d.csv'%step_num, NS)
+
+
+    np.savetxt(log_path + '/S.csv', S)
+    np.savetxt(log_path + '/A.csv', A)
+    np.savetxt(log_path + '/NS.csv', NS)
 
 
 class SAS_data(Dataset):
@@ -115,9 +118,9 @@ class SAS_data(Dataset):
             self.start_idx = int(num_data * 0.8)
             self.end_idx = num_data
 
-        self.all_S = np.loadtxt(log_path + 'S%d.csv'%num_data)
-        self.all_A = np.loadtxt(log_path + 'A%d.csv'%num_data)
-        self.all_NS=np.loadtxt(log_path + 'NS%d.csv'%num_data)
+        self.all_S = np.loadtxt(log_path + 'S.csv')
+        self.all_A = np.loadtxt(log_path + 'A.csv')
+        self.all_NS=np.loadtxt(log_path + 'NS.csv')
 
         self.all_S = torch.from_numpy(self.all_S).to(device, dtype=torch.float)
         self.all_A = torch.from_numpy(self.all_A).to(device, dtype=torch.float)
@@ -137,7 +140,7 @@ class SAS_data(Dataset):
 
 
 
-def train_sm(epochs = 1000,    step_num = 20000):
+def train_sm(epochs = 1000, step_num = 20000):
 
 
     batchsize = 64
@@ -217,7 +220,7 @@ def train_sm(epochs = 1000,    step_num = 20000):
     plt.show()
 
 
-def test_sm(TASK = 'f', eval_epoch_num = 5, step_num = 6, num_traj = 1000):
+def test_sm(TASK = 'f', eval_epoch_num = 5, step_num = 6, num_traj = 10000):
     sm_model.eval()
     log_action = []
     log_gt = []
@@ -239,7 +242,8 @@ def test_sm(TASK = 'f', eval_epoch_num = 5, step_num = 6, num_traj = 1000):
         c = random.uniform(0,5)
         log_abc.append([a,b,c])
         pos_log = 0
-        a,b,c = 0.9739379174872226, 0.6548177435069252, 0.3592433208908874
+        # a,b,c =3.9689855041285793, 3.336564139041523, 2.2297661210501394
+        a,b,c =3.11633516055833, 3.4979650446012616, 2.2336030603763755
         for step in range(step_num):
             scalse_noise = np.asarray([para_space] * num_traj).reshape((num_traj, 16))
             para_array = np.asarray([inital_para] * num_traj)
@@ -285,10 +289,10 @@ def test_sm(TASK = 'f', eval_epoch_num = 5, step_num = 6, num_traj = 1000):
             # cur_theta += pred[5]
 
             # Only choose the action that has the largest reward.
-            obs, r_step, done, _ = env.step(choose_a)
+            obs, r, done, _ = env.step(choose_a)
             log_action.append(choose_a)
 
-            real_reward += r_step
+            real_reward = r
             gt = np.copy(obs[-18:])
 
             log_gt.append(gt)
@@ -317,9 +321,9 @@ if __name__ == '__main__':
 
     name = "V000"
     sm_model = FastNN(18, 16)
-    render_flag = False
+    render_flag = True
     Train_flag = False
-    dof = 12
+    dof = 2
     print("DOF", dof)
     log_path = 'data/dof%d/' % dof
     inital_para = np.loadtxt("controller100/control_para/dof%d/0.csv" % dof)
@@ -333,9 +337,9 @@ if __name__ == '__main__':
     except: pass
 
     env = OSM_Env(dof, render_flag, inital_para, para_space, urdf_path="CAD2URDF/V000/urdf/V000.urdf", data_save_pth = log_path)
-    env.sleep_time = 0
+    env.sleep_time = 1/960
 
-    mode = 4
+    mode = 3
     # RL training
     if mode == 0:
         log_path = log_path + '/rl_model/'
@@ -348,33 +352,44 @@ if __name__ == '__main__':
             model = PPO("MlpPolicy", env,n_steps=64, verbose=0)
             train_agent()
         else:
-            model = PPO.load("%s/model50" % log_path, env)
-            mean_reward_before_train, std_reward_before_train = evaluate_RL(model, num_episodes=5)
+            model = PPO.load("%s/model25" % log_path, env)
+            mean_reward_before_train, std_reward_before_train = evaluate_RL(model, num_episodes=10)
+
 
     # collect self-model data
     if mode == 1:
-        collect_sm_data(step_num=4100)
-
-    # Train self-model
-    if mode == 2:
-        log_path = log_path + '/sm_model/'
+        data_num = 1600 * 20
+        log_path = log_path + '/sm_mode/data%d/' % data_num
         try:
             os.mkdir(log_path)
         except:
             pass
-        train_sm(step_num = 100000)
+        collect_sm_data(step_num=data_num)
+
+    # Train self-model
+    if mode == 2:
+        data_num = 1600* 1
+        log_path = log_path + '/sm_mode/data%d/' % data_num
+        try:
+            os.mkdir(log_path)
+        except:
+            pass
+        train_sm(step_num = data_num)
 
     # Test self-model
     if mode == 3:
-        log_path = log_path + '/sm_model/'
+        data_num = 1600 * 1
+
+        log_path = log_path + '/sm_mode/data%d/' % data_num
         sm_model.load_state_dict(torch.load(log_path+'best_model.pt', map_location=torch.device(device)))
         sm_model.to(device)
         test_sm(TASK='f', eval_epoch_num=10)
 
     # Show pred plots
     if mode == 4:
-        pred = np.loadtxt(log_path+'/sm_model/pred.csv')
-        gt = np.loadtxt(log_path + '/sm_model/gt.csv')[:, -18:]
+        data_num = 1600 * 1
+        pred = np.loadtxt(log_path+'/sm_mode/data%d/pred.csv' % data_num)
+        gt = np.loadtxt(log_path + '/sm_mode/data%d/gt.csv' % data_num)[:, -18:]
 
         num = 60
         print(np.mean((pred-gt)**2))

@@ -40,6 +40,6 @@ class FastNN(nn.Module):
         # x,_ = self.l3(x,(h1,c1))
         x = self.tanh(self.l3(x))
         # x = self.dropout(x)
-        x = self.tanh(self.l4(x))
+        x = self.l4(x)
         x = self.l5(x)
         return x
