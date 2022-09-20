@@ -10,7 +10,7 @@ import scipy.linalg as linalg
 
 
 class OSM_Env(gym.Env):
-    def __init__(self, dof, render,para,noise_para, data_save_pth, robot_camera=False, urdf_path='CAD2URDF'):
+    def __init__(self, dof, render,para,noise_para, data_save_pth, robot_camera=False, urdf_path='CAD2URDF', one_more_robot = None):
         self.save_pth = data_save_pth
         if render:
             p.connect(p.GUI)
@@ -49,6 +49,7 @@ class OSM_Env(gym.Env):
         self.noise_para = noise_para
         self.para = para
         self.initial_values = sin_move(0, para, sep=self.sub_step_num)
+        self.one_more_robot = onemorerobot
 
         obs = self.reset()
         self.action_space = gym.spaces.Box(low=-np.ones(16), high=np.ones(16))
@@ -152,6 +153,26 @@ class OSM_Env(gym.Env):
 
         self.count +=1
 
+        return obs, r, done, {}
+
+    def step_2robot(self, a1, a2):
+
+        self.act(a)
+        obs = self.get_obs()
+
+        pos, _ = self.robot_location()
+        # r = 2 * obs[1] - np.abs(obs[0]) - 0.5*np.abs(obs[5])
+        r = pos[1]
+        done = self.check()
+
+        self.log_obs.append(obs)
+        self.log_action.append(a)
+
+        if self.count % 100 == 0:
+            np.savetxt(self.save_pth + "/log_obs.csv", np.asarray(self.log_obs))
+            np.savetxt(self.save_pth + "/log_action.csv", np.asarray(self.log_action))
+
+        self.count += 1
 
         return obs, r, done, {}
 
