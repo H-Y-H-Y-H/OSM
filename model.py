@@ -3,18 +3,18 @@ import torch
 
 
 class FastNN(nn.Module):
-    def __init__(self, s, a):
+    def __init__(self, input_size, output_size):
         super(FastNN, self).__init__()
         self.num_layers = 1
         self.hidden_size = 128
 
         # self.l1 = nn.LSTM(s*3 + a, self.hidden_size, self.num_layers, batch_first = True)
-        self.l1 = nn.Linear(s * 3 + a, 128)
+        self.l1 = nn.Linear(input_size, 128)
         self.l2 = nn.Linear(128, 128)
         # self.l3 = nn.LSTM(128, self.hidden_size, self.num_layers, batch_first = True)
         self.l3 = nn.Linear(128, 256)
         self.l4 = nn.Linear(256, 128)
-        self.l5 = nn.Linear(128, s)
+        self.l5 = nn.Linear(128, output_size)
         self.tanh = nn.Tanh()
         # self.dropout = nn.Dropout(0.8)
 

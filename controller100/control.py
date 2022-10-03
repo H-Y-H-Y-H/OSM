@@ -5,26 +5,13 @@ inner_motor_index = [0, 3, 6, 9]
 middle_motor_index = [1, 4, 7, 10]
 outer_motor_index = [2, 5, 8, 11]
 
-# def reset(i,flag = 0):
-#     if flag ==1:
-#         if i < 3:
-#             action = np.array([0, -0.8, 0.9] * 4)
-#         elif i < 10 and i >= 3:
-#             action = np.array([0, 0, 0] * 4)
-#         elif i < 20 and i >= 10:
-#             action = np.array([0, 0, 0.9] * 4)
-#         else:
-#             action = np.array([0, -0.8, 0.9] * 4)
-#     else:
-#         action = np.array([-1, -0.8, 0.9] * 4)
-#     return action
+
 
 def random_para():
-    para = np.zeros(16)
-    for i in range(16):
-        para[i] = random.uniform(-1, 1)
+    para = np.random.uniform(-1, 1,size=16)
+
     for i in range(2,6):
-        para[i] *= 2*np.pi
+        para[i] *= np.pi
 
     return para
 
