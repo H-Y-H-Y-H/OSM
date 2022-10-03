@@ -372,7 +372,7 @@ if __name__ == '__main__':
     except:
         pass
 
-    mode = 4
+    mode = 5
     if mode != 5:
         env = OSM_Env(dof, render_flag, inital_para, para_space, urdf_path="CAD2URDF/V000/urdf/V000.urdf",
                       data_save_pth=log_path)
@@ -451,7 +451,7 @@ if __name__ == '__main__':
         plt.show()
 
     if mode == 5:
-        data_num = 600 * (2 ** 6)
+        data_num = 600 * (2 ** 1)
         model_path = log_path + '/sm_mode/data%d/' % data_num
         sm_model.load_state_dict(torch.load(model_path + 'best_model.pt', map_location=torch.device(device)))
         sm_model.to(device)
