@@ -12,6 +12,7 @@ from torch.utils.data import Dataset, DataLoader
 import time
 
 random.seed(2022)
+np.random.seed(2022)
 if torch.cuda.is_available():
     device = 'cuda'
 else:
@@ -19,42 +20,51 @@ else:
 print("Device:", device)
 
 
-def evaluate_RL(model, num_episodes=5, num_seq=4):
+def evaluate_RL(env, model, num_episodes=5,steps_each_episode= 6, num_seq=4):
     all_episode_rewards = []
     print("when evaluate: sm_model_world ", env.sm_model_world)
     env.sm_model_world = False
+    episode_rewards = 0
+    y_values= []
     for epoch in range(num_episodes):
         # print(epoch)
         episode_rewards = 0
         obs = env.reset()
         action_list = []
-        for i in range(6):
+        for i in range(steps_each_episode):
             # action = best_action_file[i]
             # action_logger.append(action)
             action, _ = model.predict(obs)
-            obs, real_r, done, _ = env.step(action)
+            obs, r, done, _ = env.step(action)
             action_list.append(action)
-            if done == True:
+            if done:
                 print("fail")
                 break
-            episode_rewards += real_r
+            episode_rewards += r
 
-        np.savetxt("%s/action_list.csv" % log_path, np.asarray(action_list))
+        # np.savetxt("%s/action_list.csv" % log_path, np.asarray(action_list))
+        pos, ori = env.robot_location()
         all_episode_rewards.append(episode_rewards)
+        print("Y: ", pos[1])
+        y_values.append(pos[1])
 
     mean_episode_reward = np.mean(all_episode_rewards)
     std_episode_reward = np.std(all_episode_rewards)
-    print("Mean reward:", mean_episode_reward, "Std reward:", std_episode_reward, "Num episodes:", num_episodes)
+    # print("Mean reward:", mean_episode_reward, "Std reward:", std_episode_reward, "Num episodes:", num_episodes)
+
+
+    print("rewards", mean_episode_reward, std_episode_reward)
+    print("Y", np.mean(y_values), np.std(y_values))
+
     return mean_episode_reward, std_episode_reward
 
 
-def train_agent(num_step_for_eval=300):
+def train_agent(epoch_num=6400, num_step_for_eval=300):
     # Random Agent, before training
-    mean_reward_before_train, std_reward_before_train = evaluate_RL(model, num_episodes=3)
+    mean_reward_before_train, std_reward_before_train = evaluate_RL(env, model, num_episodes=3)
     r_m_each_epoch = [mean_reward_before_train]
     r_s_each_epoch = [std_reward_before_train]
 
-    epoch_num = 12800
     best_r = -np.inf
     try:
         os.mkdir(log_path + "/model")
@@ -65,8 +75,8 @@ def train_agent(num_step_for_eval=300):
 
         model.learn(total_timesteps=6)
 
-        if (epoch + 1) in [200,400,800,1600,3200,6400,12800] == 0:
-            mean_reward, std_reward = evaluate_RL(model, num_episodes=3)
+        if (epoch + 1) % 50 == 0:
+            mean_reward, std_reward = evaluate_RL(env, model, num_episodes=3)
 
             if best_r < mean_reward:
                 best_r = mean_reward
@@ -141,7 +151,7 @@ class SAS_data(Dataset):
 
 
 def train_sm(epochs=1000, step_num=20000):
-    batchsize = 64
+    batchsize = 8
     lr = 1e-4
 
     sm_model.to(device)
@@ -218,7 +228,7 @@ def train_sm(epochs=1000, step_num=20000):
     plt.show()
 
 
-def test_sm(TASK='f', eval_epoch_num=5, step_num=6, num_traj=10000):
+def test_sm(sm_model, env, log_path, Action_array = None, TASK='f', eval_epoch_num=5, step_num=6, num_traj=25600):
     sm_model.eval()
     log_action = []
     log_gt = []
@@ -227,9 +237,11 @@ def test_sm(TASK='f', eval_epoch_num=5, step_num=6, num_traj=10000):
     log_results = []
     log_abc = []
     log_y = []
+
+    y_values = []
     for epoch in range(eval_epoch_num):
         real_reward = 0
-        reward = 0
+
 
         cur_p = [0] * 3
         cur_theta = 0
@@ -241,23 +253,23 @@ def test_sm(TASK='f', eval_epoch_num=5, step_num=6, num_traj=10000):
         log_abc.append([a, b, c])
         pos_log = 0
         # a,b,c =3.9689855041285793, 3.336564139041523, 2.2297661210501394
-        a, b, c = 3.11633516055833, 3.4979650446012616, 2.2336030603763755
+        a, b, c = 3, 1, 0.5
         for step in range(step_num):
             # scalse_noise = np.asarray([para_space] * num_traj).reshape((num_traj, 16))
-            A_array_numpy = np.random.uniform(-1, 1, size=(num_traj, 16))
+
+            if Action_array == None:
+                A_array_numpy = np.random.uniform(-1, 1, size=(num_traj, 16))
 
             S_array = np.asarray([obs] * num_traj)
-
             S_array = torch.from_numpy(S_array.astype(np.float32)).to(device)
             A_array = torch.from_numpy(A_array_numpy.astype(np.float32)).to(device)
-
             pred_ns = sm_model.forward(S_array, A_array)
-
             pred_ns_numpy = pred_ns[0].cpu().detach().numpy()
 
             # Define Object Function to Compute Rewards
 
             if TASK == "f":
+
                 all_a_rewards = a * pred_ns_numpy[:, 1] - b * abs(pred_ns_numpy[:, 5]) - c * abs(pred_ns_numpy[:, 0])
             elif TASK == "l":
                 all_a_rewards = pred_ns_numpy[:,
@@ -290,20 +302,21 @@ def test_sm(TASK='f', eval_epoch_num=5, step_num=6, num_traj=10000):
             obs, r, done, _ = env.step(choose_a)
             log_action.append(choose_a)
 
-            real_reward = r
+            real_reward += r
             gt = np.copy(obs[-18:])
 
             log_gt.append(gt)
             log_pred.append(pred)
             pos_log, ori_log = env.robot_location()
-            print(ori_log, pos_log, a, b, c)
+            print(pos_log, ori_log, a, b, c)
             rob_pos_ori.append(np.concatenate((ori_log, pos_log)))
 
-            if step == step_num - 1:
-                break
 
         log_y.append(pos_log[1])
         log_results.append(real_reward)
+        pos, ori = env.robot_location()
+        y_values.append(pos[1])
+
     print(np.max(log_y), log_abc[np.argmax(log_y)])
     np.savetxt(log_path + '/pred.csv', np.asarray(log_pred))
     np.savetxt(log_path + '/gt.csv', np.asarray(log_gt))
@@ -312,16 +325,17 @@ def test_sm(TASK='f', eval_epoch_num=5, step_num=6, num_traj=10000):
 
     result_mean = np.mean(log_results)
     result_std = np.std(log_results)
-    print("test result:", result_mean, result_std)
+    print("rewards:", result_mean, result_std)
+    print("Y:", np.mean(y_values), np.std(y_values))
 
 
-def train_agent_with_sm():
+def train_agent_with_sm(env, model, log_path):
     # Random Agent, before training
-    mean_reward_before_train, std_reward_before_train = evaluate_RL(model, num_episodes=3)
+    mean_reward_before_train, std_reward_before_train = evaluate_RL(env, model, num_episodes=3)
     r_m_each_epoch = [mean_reward_before_train]
     r_s_each_epoch = [std_reward_before_train]
 
-    epoch_num = 3600
+    epoch_num = 12800
     best_r = -np.inf
 
     for epoch in range(epoch_num):
@@ -329,9 +343,9 @@ def train_agent_with_sm():
         env.sm_model_world = True
         model.learn(total_timesteps=6)
 
-        if (epoch + 1) % 200 == 0:
+        if epoch % 50 == 0 or epoch == (epoch_num - 1):
             env.sm_model_world = False
-            mean_reward, std_reward = evaluate_RL(model, num_episodes=3)
+            mean_reward, std_reward = evaluate_RL(env, model, num_episodes=3)
 
             if best_r < mean_reward:
                 best_r = mean_reward
@@ -339,31 +353,32 @@ def train_agent_with_sm():
 
             r_m_each_epoch.append(mean_reward)
             r_s_each_epoch.append(std_reward)
-            print(mean_reward, std_reward, env.count)
 
             np.savetxt(log_path + "/reward_mean.csv", np.asarray(r_m_each_epoch))
             np.savetxt(log_path + "/reward_std.csv", np.asarray(r_s_each_epoch))
-            model.save(log_path + "/model%d" % (epoch + 1))
+            model.save(log_path + "/model%d" % (epoch))
 
     np.savetxt(log_path + "/reward_mean.csv", np.asarray(r_m_each_epoch))
     np.savetxt(log_path + "/reward_std.csv", np.asarray(r_s_each_epoch))
-    plt.errorbar(range(epoch_num + 1), r_m_each_epoch, r_s_each_epoch)
+    plt.errorbar(range(len(r_m_each_epoch)), r_m_each_epoch, r_s_each_epoch)
     plt.savefig(log_path + "rewards_plot.png")
 
 
 if __name__ == '__main__':
 
+    state_def = 2
     name = "V000"
-    sm_model = FastNN(70, 18)
-    # render_flag = False
-    # Train_flag = True
+    sm_model = FastNN(18 + 16, 18) #,activation_fun="Relu"
 
-    render_flag = True
-    Train_flag = False
+    render_flag = False
+    Train_flag = True
+
+    # render_flag = True
+    # Train_flag = False
 
     dof = 12
     print("DOF", dof)
-    log_path = 'data/dof%d/' % dof
+    log_path = 'data/dof%d/state_def%d' % (dof, state_def)
     inital_para = np.loadtxt("controller100/control_para/para.csv")
     para_space = np.loadtxt("controller100/control_para/para_range.csv")
 
@@ -372,32 +387,35 @@ if __name__ == '__main__':
     except:
         pass
 
-    mode = 5
+    mode = 2
+
     if mode != 5:
         env = OSM_Env(dof, render_flag, inital_para, para_space, urdf_path="CAD2URDF/V000/urdf/V000.urdf",
-                      data_save_pth=log_path)
+                      data_save_pth=log_path, state_def=state_def)
     else:
         env = None
 
     # RL training
     if mode == 0:
-        log_path = log_path + '/rl_model/'
-        try:
-            os.mkdir(log_path)
-        except:
-            pass
+        for sub_process in range(5):
+            log_path = log_path + '/rl_model/%d/' % sub_process
+            try:
+                os.mkdir(log_path)
+            except:
+                pass
 
-        if Train_flag == True:
-            model = PPO("MlpPolicy", env, n_steps=6, verbose=0, batch_size=6)
-            train_agent()
-        else:
-            model = PPO.load("%s/model/model6400" % log_path, env)
-            mean_reward_before_train, std_reward_before_train = evaluate_RL(model, num_episodes=20)
+            if Train_flag == True:
+                model = PPO("MlpPolicy", env, n_steps=6, verbose=0, batch_size=6)
+                train_agent(epoch_num=2000)
+            else:
+                model = PPO.load("%s/model/model1000" % log_path, env)
+                mean_reward_before_train, std_reward_before_train = evaluate_RL(env, model, steps_each_episode = 6, num_episodes=20)
 
     # Collect self-model data
     if mode == 1:
-        data_num = 600 * (2 ** 7)
-        log_path = log_path + '/sm_mode/data%d/' % data_num
+        sub_process = 0
+        data_num = 3000
+        log_path = log_path + '/sm_mode/data%d/%d/' % (data_num, sub_process)
         try:
             os.mkdir(log_path)
         except:
@@ -406,8 +424,9 @@ if __name__ == '__main__':
 
     # Train self-model
     if mode == 2:
-        data_num = 600 * (2 ** 7)
-        log_path = log_path + '/sm_mode/data%d/' % data_num
+        data_num = 6000
+        sub_process = 5 # sm_mode/data600/2
+        log_path = log_path + '/sm_mode/data%d/%d/' % (data_num, sub_process)
         try:
             os.mkdir(log_path)
         except:
@@ -416,16 +435,19 @@ if __name__ == '__main__':
 
     # Test self-model
     if mode == 3:
-        data_num = 600 * (2 ** 6)
+        data_num = 6000
+        sub_process = 0
+        log_path = log_path + '/sm_mode/data%d/%d/' % (data_num, sub_process)
 
-        log_path = log_path + '/sm_mode/data%d/' % data_num
         sm_model.load_state_dict(torch.load(log_path + 'best_model.pt', map_location=torch.device(device)))
         sm_model.to(device)
-        test_sm(TASK='f', eval_epoch_num=20)
+        env.save_pth = None
+
+        test_sm(sm_model, env, log_path, TASK='f', eval_epoch_num=20)
 
     # Show pred plots
     if mode == 4:
-        data_num = 600 * (2 ** 4)
+        data_num = 600 * (2 ** 6)
         robot_state = ['x', 'y', 'z', 'roll', 'pitch', 'yaw',
                        'M0', 'M1', 'M2', 'M3', 'M4',
                        'M5', 'M6', 'M7', 'M8', 'M9', 'M10', 'M11']
@@ -451,17 +473,16 @@ if __name__ == '__main__':
         plt.show()
 
     if mode == 5:
-        data_num = 600 * (2 ** 1)
-        model_path = log_path + '/sm_mode/data%d/' % data_num
+        data_num = 600
+        sub_process = 0
+        model_path = log_path + '/sm_mode/data%d/%d/' % (data_num,sub_process)
         sm_model.load_state_dict(torch.load(model_path + 'best_model.pt', map_location=torch.device(device)))
         sm_model.to(device)
         sm_model.eval()
 
+        log_path = log_path + '/rl_sm/data%d/%d/' % (data_num,sub_process)
         env = OSM_Env(dof, render_flag, inital_para, para_space, urdf_path="CAD2URDF/V000/urdf/V000.urdf",
-                      data_save_pth=log_path, sm_world=sm_model)
-
-        log_path = log_path + '/rl_sm/data_%d/' % data_num
-
+                      data_save_pth=log_path, sm_world=sm_model, state_def=state_def)
         try:
             os.mkdir(log_path)
         except:
@@ -469,7 +490,16 @@ if __name__ == '__main__':
 
         if Train_flag == True:
             model = PPO("MlpPolicy", env, n_steps=6, verbose=0, batch_size=6)
-            train_agent_with_sm()
+            train_agent_with_sm(env, model, log_path)
         else:
             model = PPO.load(log_path + "best_model", env)
-            mean_reward_before_train, std_reward_before_train = evaluate_RL(model, num_episodes=20)
+            mean_reward_before_train, std_reward_before_train = evaluate_RL(env, model, num_episodes=20)
+
+    if mode == 6:
+        data_num = 600 * (2 ** 6)
+        log_path = log_path + '/rl_sm/data_%d/' % data_num
+        epoch_pred_error = np.load(log_path + 'log_pred_error_every_epoch.npy')
+
+        # print(epoch_pred_error.shape)
+        plt.plot(epoch_pred_error)
+        plt.show()

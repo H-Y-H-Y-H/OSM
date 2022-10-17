@@ -163,7 +163,7 @@ if __name__ == '__main__':
                   robot_camera=False,
                   urdf_path="../CADandURDF/robot_repo/V000/urdf/V000.urdf")
     # rand_pos= True, rand_torque= True,rand_fiction=True)
-    env.sleep_time = 0.
+    env.spt = 0.
     env.data_collection = True
 
     save_path = "traj_optim/dataset/control_para/"

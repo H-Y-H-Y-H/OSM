@@ -14,13 +14,15 @@ else:
 
 class OSM_Env(gym.Env):
     def __init__(self, dof, render, para, noise_para, data_save_pth, robot_camera=False, urdf_path='CAD2URDF',
-                 log_step_flag=False, sm_world = None):
-        self.save_pth = data_save_pth #save SAS data
-        self.log_step_flag = log_step_flag
+                 sm_world=None, state_def=0):
+        self.save_pth = data_save_pth  # save SAS data
+
         if render:
             p.connect(p.GUI)
+            self.spt = 0  # 1/2000  # decrease the value if it is too slow.
         else:
             p.connect(p.DIRECT)
+            self.spt = 0  # decrease the value if it is too slow.
 
         self.robotid = None
         self.v_p = None
@@ -40,7 +42,7 @@ class OSM_Env(gym.Env):
         self.a = self.para
         self.mode = p.POSITION_CONTROL
         self.maxVelocity = 1.5  # lx-224 0.20 sec/60degree = 5.236 rad/s
-        self.sleep_time = 0  # decrease the value if it is too slow.
+
         self.force = 1.8
         self.n_sim_steps = 30
         self.motor_action_space = np.pi / 3
@@ -50,6 +52,9 @@ class OSM_Env(gym.Env):
         self.friction = 0.99
         self.robot_view_path = None
         self.dof = dof
+        self.state_def = state_def
+        self.sm_pred_error_list = []
+
         self.robot_type = [[3, 6],
                            [0, 3, 6, 9],
                            [0, 3, 4, 6, 7, 9],
@@ -61,8 +66,7 @@ class OSM_Env(gym.Env):
         self.sm_model_world = False
 
         self.action_space = gym.spaces.Box(low=-np.ones(16), high=np.ones(16))
-        self.observation_space = gym.spaces.Box(low=-np.ones(54) * np.inf, high=np.ones(54) * np.inf)
-
+        self.observation_space = gym.spaces.Box(low=-np.ones(18) * np.inf, high=np.ones(18) * np.inf)
         self.log_obs = []
         self.log_action = []
         self.count = 0
@@ -87,39 +91,39 @@ class OSM_Env(gym.Env):
         jointInfo = [p.getJointState(self.robotid, i) for i in range(12)]
         jointVals = np.array([[joint[0]] for joint in jointInfo]).flatten()
 
-        if self.sm_model_world == False:
-
-            self.last_last_obs = np.copy(self.last_obs)
-            self.last_obs = np.copy(self.obs)
-            self.obs = np.concatenate([self.v_p, self.q, jointVals])
+        if not self.sm_model_world:
+            if self.state_def == 2:
+                self.obs = np.concatenate([self.v_p, self.q, jointVals])
+            elif self.state_def == 3:
+                self.obs = np.concatenate([self.p, self.q, jointVals])
 
             # print(np.mean((self.obs - new_obs)**2))
 
         else:
-            obs_data = np.concatenate([self.last_last_obs, self.last_obs, self.obs])
+            # Delta position and orientation
+            if self.state_def == 2:
+                real_obs = np.concatenate([self.v_p, self.q, jointVals])
+            elif self.state_def == 3:
+                real_obs = np.concatenate([self.p, self.q, jointVals])
+            else:
+                real_obs = 0
+                quit()
 
+            obs_data = self.obs
             obs_data = torch.from_numpy(obs_data).to(device, dtype=torch.float)
             tensor_a = torch.from_numpy(self.a).to(device, dtype=torch.float)
-
             new_obs = self.sm_model.forward(obs_data, tensor_a)
 
-            # Delta position and orientation
-
-            real_obs = np.concatenate([self.v_p, self.v_q, jointVals])
-
-
             new_obs = new_obs[0].cpu().detach().numpy()
-            print(np.mean((real_obs - new_obs)**2))
-            # new_obs = np.copy(real_obs)
 
+            self.sm_pred_error_list.append(np.mean((real_obs - new_obs) ** 2))
+            # new_obs = np.copy(real_obs)
 
             self.last_last_obs = np.copy(self.last_obs)
             self.last_obs = np.copy(self.obs)
             self.obs = np.copy(new_obs)
 
-        obs_data = np.concatenate([self.last_last_obs, self.last_obs, self.obs])
-
-        return obs_data
+        return self.obs
 
     def act(self, a):
         self.a = a
@@ -149,7 +153,7 @@ class OSM_Env(gym.Env):
                         basePos_list = [basePos[0], basePos[1], 0.3]
                         p.resetDebugVisualizerCamera(cameraDistance=1, cameraYaw=75, cameraPitch=-20,
                                                      cameraTargetPosition=basePos_list)  # fix camera onto model
-                time.sleep(self.sleep_time)
+            time.sleep(self.spt)
 
     def reset(self):
         p.resetSimulation()
@@ -182,9 +186,6 @@ class OSM_Env(gym.Env):
         self.q = p.getEulerFromQuaternion(self.q)
         self.p, self.q = np.array(self.p), np.array(self.q)
 
-        self.last_last_obs = [0] * 18
-        self.last_obs = [0] * 18
-
         jointInfo = [p.getJointState(self.robotid, i) for i in range(12)]
         jointVals = np.array([[joint[0]] for joint in jointInfo]).flatten()
         self.obs = np.concatenate([self.p, self.q, jointVals])
@@ -197,22 +198,22 @@ class OSM_Env(gym.Env):
 
         obs = self.get_obs()
 
-        # pos, _ = self.robot_location()
-        r = 2 * obs[37] - np.abs(obs[36]) - 0.5*np.abs(obs[41]) + 1
-        # r = pos[1]
+        pos, _ = self.robot_location()
 
-        done = self.check()
+        r = 3 * obs[1] - abs(obs[5]) - 0.5 * (obs[0]) + 1
+
+        Done = self.check()
 
         self.log_obs.append(obs)
         self.log_action.append(a)
 
-        if self.count % 100 == 0 and self.log_step_flag == True:
+        if (self.count % 100 == 0) and (self.save_pth != None):
             np.savetxt(self.save_pth + "/log_obs.csv", np.asarray(self.log_obs))
             np.savetxt(self.save_pth + "/log_action.csv", np.asarray(self.log_action))
-
+            np.save(self.save_pth + "/log_pred_error_every_epoch.npy", np.asarray(self.sm_pred_error_list))
         self.count += 1
 
-        return obs, r, done, {}
+        return obs, r, Done, {}
 
     def robot_location(self):
         position, orientation = p.getBasePositionAndOrientation(self.robotid)
@@ -226,8 +227,10 @@ class OSM_Env(gym.Env):
         #     abort_flag = True
         if abs(ori[0]) > np.pi / 2 or abs(ori[1]) > np.pi / 2:
             abort_flag = True
-        # elif abs(pos[2]) < 0.22:
-        #     abort_flag = True
+        elif pos[1] < -0.04:
+            abort_flag = True
+        elif abs(pos[0]) > 0.2:
+            abort_flag = True
         else:
             abort_flag = False
         return abort_flag
@@ -247,12 +250,12 @@ if __name__ == '__main__':
     # para = np.loadtxt(data_path + "0.csv")
 
     # Run the trajectory commands
-    best_action_file = np.loadtxt("data/dof12/rl_model/action_list.csv")
+    action_file = np.loadtxt("data/dof12/state_def2/dyna_sm/sm_model/train/1000data/CYECLE_6/5/trainA.csv")
     results = []
     render_flag = True
     env = OSM_Env(12, render_flag, inital_para, para_space, urdf_path="CAD2URDF/V000/urdf/V000.urdf",
                   data_save_pth=log_path)
-    env.sleep_time = 0
+    env.spt = 1 / 240
 
     for epoch in range(100):
         print(epoch)
@@ -260,20 +263,19 @@ if __name__ == '__main__':
         result = 0
         env.reset()
         action_logger = []
-        for i in range(6):
-            time1 = time.time()
-            # POLICY 1: Random
-            # action = []
-            # for j in range(16):
-            #     action.append(random.uniform(-1,1))
-            # POLICY 2: Read outside data
-            action = best_action_file[i]
-            action_logger.append(action)
-            obs, r, done, _ = env.step(action)
-            result = env.robot_location()
-            print(result, r, done)
-            time2 = time.time()
-            print(0.12 - (time2 - time1))
+        for i in range(43, 44):
+            for j in range(3):
+                # POLICY 1: Random
+                # action = []
+                # for j in range(16):
+                #     action.append(random.uniform(-1,1))
+                # POLICY 2: Read outside data
+                action = action_file[i * 3 + j]
+                # action_logger.append(action)
+                obs, r, done, _ = env.step(action)
+                result = env.robot_location()
+                # time.sleep(3)
+                print(result, r, done)
 
         results.append(result[0])
         # np.savetxt("sin_gait_action.csv",action_logger)

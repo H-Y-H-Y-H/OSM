@@ -3,7 +3,7 @@ import torch
 
 
 class FastNN(nn.Module):
-    def __init__(self, input_size, output_size):
+    def __init__(self, input_size, output_size, activation_fun = 'Tahn'):
         super(FastNN, self).__init__()
         self.num_layers = 1
         self.hidden_size = 128
@@ -15,7 +15,11 @@ class FastNN(nn.Module):
         self.l3 = nn.Linear(128, 256)
         self.l4 = nn.Linear(256, 128)
         self.l5 = nn.Linear(128, output_size)
-        self.tanh = nn.Tanh()
+        if activation_fun == 'Relu':
+            self.activation = nn.ReLU()
+        else:
+            self.activation = nn.Tanh()
+
         # self.dropout = nn.Dropout(0.8)
 
     def reset(self, s):
@@ -34,12 +38,13 @@ class FastNN(nn.Module):
         x = torch.cat([s, a], -1).unsqueeze(0)
         # x, (h1,c1) = self.l1(x, None)
 
-        x = self.tanh(self.l1(x))
-        x = self.tanh(self.l2(x))
+        x = self.activation(self.l1(x))
+        x = self.activation(self.l2(x))
 
         # x,_ = self.l3(x,(h1,c1))
-        x = self.tanh(self.l3(x))
+        x = self.activation(self.l3(x))
         # x = self.dropout(x)
         x = self.l4(x)
         x = self.l5(x)
+
         return x
