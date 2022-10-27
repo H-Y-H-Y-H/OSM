@@ -19,46 +19,27 @@ else:
     device = 'cpu'
 print("Device:", device)
 
+def evaluate_RL(eval_env, model, steps_each_episode=6):
+    eval_env.sm_model_world = False
+    print("Evaluation: sm_model_world ", eval_env.sm_model_world)
 
-def evaluate_RL(env, model, num_episodes=5,steps_each_episode= 6, num_seq=4):
-    all_episode_rewards = []
-    print("when evaluate: sm_model_world ", env.sm_model_world)
-    env.sm_model_world = False
     episode_rewards = 0
-    y_values= []
-    for epoch in range(num_episodes):
-        # print(epoch)
-        episode_rewards = 0
-        obs = env.reset()
-        action_list = []
-        for i in range(steps_each_episode):
-            # action = best_action_file[i]
-            # action_logger.append(action)
-            action, _ = model.predict(obs, deterministic=False)
-            obs, r, done, _ = env.step(action)
-            action_list.append(action)
-            if done:
-                print("fail")
-                break
-            episode_rewards += r
+    obs = eval_env.reset()
+    action_list = []
+    for i in range(steps_each_episode):
+        action, _ = model.predict(obs, deterministic=True)
+        obs, r, done, _ = eval_env.step(action)
+        action_list.append(action)
+        if done:
+            print("fail")
+            break
+        episode_rewards += r
 
-        # np.savetxt("%s/action_list.csv" % log_path, np.asarray(action_list))
-        pos, ori = env.robot_location()
-        all_episode_rewards.append(episode_rewards)
-        print("Y: ", pos[1])
-        y_values.append(pos[1])
+    pos, ori = eval_env.robot_location()
+    print("rewards", episode_rewards)
+    print("Y", pos[1])
 
-    mean_episode_reward = np.mean(all_episode_rewards)
-    std_episode_reward = np.std(all_episode_rewards)
-    # print("Mean reward:", mean_episode_reward, "Std reward:", std_episode_reward, "Num episodes:", num_episodes)
-
-
-    print("rewards", mean_episode_reward, std_episode_reward)
-    print("Y", np.mean(y_values), np.std(y_values))
-
-    return mean_episode_reward, std_episode_reward, np.mean(y_values), np.std(y_values)
-
-
+    return episode_rewards, pos[1]
 def train_agent(epoch_num=6400, num_step_for_eval=300):
     # Random Agent, before training
     mean_reward_before_train, std_reward_before_train = evaluate_RL(env, model, num_episodes=3)
