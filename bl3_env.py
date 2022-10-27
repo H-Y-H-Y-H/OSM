@@ -14,7 +14,8 @@ else:
 
 class OSM_Env(gym.Env):
     def __init__(self, dof, render, para, noise_para, data_save_pth, robot_camera=False, urdf_path='CAD2URDF',
-                 sm_world=None, state_def=0):
+                 sm_world=None, TASK='f'):
+        self.choose_a = None
         self.save_pth = data_save_pth  # save SAS data
 
         if render:
@@ -52,7 +53,6 @@ class OSM_Env(gym.Env):
         self.friction = 0.99
         self.robot_view_path = None
         self.dof = dof
-        self.state_def = state_def
         self.sm_pred_error_list = []
 
         self.robot_type = [[3, 6],
@@ -70,6 +70,7 @@ class OSM_Env(gym.Env):
         self.log_obs = []
         self.log_action = []
         self.count = 0
+        self.task = TASK
 
         p.setAdditionalSearchPath(pd.getDataPath())
 
@@ -92,22 +93,13 @@ class OSM_Env(gym.Env):
         jointVals = np.array([[joint[0]] for joint in jointInfo]).flatten()
 
         if not self.sm_model_world:
-            if self.state_def == 2:
-                self.obs = np.concatenate([self.v_p, self.q, jointVals])
-            elif self.state_def == 3:
-                self.obs = np.concatenate([self.p, self.q, jointVals])
+            self.obs = np.concatenate([self.v_p, self.q, jointVals])
 
-            # print(np.mean((self.obs - new_obs)**2))
+        # print(np.mean((self.obs - new_obs)**2))
 
         else:
             # Delta position and orientation
-            if self.state_def == 2:
-                real_obs = np.concatenate([self.v_p, self.q, jointVals])
-            elif self.state_def == 3:
-                real_obs = np.concatenate([self.p, self.q, jointVals])
-            else:
-                real_obs = 0
-                quit()
+            real_obs = np.concatenate([self.v_p, self.q, jointVals])
 
             obs_data = self.obs
             obs_data = torch.from_numpy(obs_data).to(device, dtype=torch.float)
@@ -194,13 +186,31 @@ class OSM_Env(gym.Env):
 
     def step(self, a):
 
+        # if not self.sm_model_world:
+        #     S_array = np.asarray([self.obs] * 2560)
+        #     A_array_numpy = np.random.uniform(-1, 1, size=(2560, 16))
+        #
+        #     S_array = torch.from_numpy(S_array.astype(np.float32)).to(device)
+        #     A_array = torch.from_numpy(A_array_numpy.astype(np.float32)).to(device)
+        #     pred_ns = self.sm_model.forward(S_array, A_array)
+        #     pred_ns_numpy = pred_ns[0].cpu().detach().numpy()
+        #     if self.task == "f":
+        #         all_a_rewards = 3 * pred_ns_numpy[:, 1] - abs(pred_ns_numpy[:, 5]) - 0.5 * abs(pred_ns_numpy[:, 0])
+        #     else:
+        #         all_a_rewards = np.zeros(10)
+        #
+        #     greedy_select = int(np.argmax(all_a_rewards))
+        #     self.choose_a = A_array_numpy[greedy_select]
+
         self.act(a)
 
         obs = self.get_obs()
 
         pos, _ = self.robot_location()
 
-        r = 3 * obs[1] - abs(obs[5]) - 0.5 * (obs[0]) + 1
+        r = 3 * obs[1] - abs(obs[5]) - 0.5 * abs(obs[0]) + 1
+
+        # r -= np.mean((self.choose_a - a) ** 2) * 0.1
 
         Done = self.check()
 

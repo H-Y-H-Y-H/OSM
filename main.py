@@ -34,7 +34,7 @@ def evaluate_RL(env, model, num_episodes=5,steps_each_episode= 6, num_seq=4):
         for i in range(steps_each_episode):
             # action = best_action_file[i]
             # action_logger.append(action)
-            action, _ = model.predict(obs)
+            action, _ = model.predict(obs, deterministic=False)
             obs, r, done, _ = env.step(action)
             action_list.append(action)
             if done:
@@ -56,7 +56,7 @@ def evaluate_RL(env, model, num_episodes=5,steps_each_episode= 6, num_seq=4):
     print("rewards", mean_episode_reward, std_episode_reward)
     print("Y", np.mean(y_values), np.std(y_values))
 
-    return mean_episode_reward, std_episode_reward
+    return mean_episode_reward, std_episode_reward, np.mean(y_values), np.std(y_values)
 
 
 def train_agent(epoch_num=6400, num_step_for_eval=300):
@@ -329,13 +329,14 @@ def test_sm(sm_model, env, log_path, Action_array = None, TASK='f', eval_epoch_n
     print("Y:", np.mean(y_values), np.std(y_values))
 
 
+
 def train_agent_with_sm(env, model, log_path):
     # Random Agent, before training
-    mean_reward_before_train, std_reward_before_train = evaluate_RL(env, model, num_episodes=3)
-    r_m_each_epoch = [mean_reward_before_train]
-    r_s_each_epoch = [std_reward_before_train]
+    mean_r, std_r, mean_y, std_y = evaluate_RL(env, model, num_episodes=3)
+    r_m_each_epoch = [mean_r]
+    r_s_each_epoch = [std_r]
 
-    epoch_num = 12800
+    epoch_num = 6000
     best_r = -np.inf
 
     for epoch in range(epoch_num):
@@ -343,16 +344,16 @@ def train_agent_with_sm(env, model, log_path):
         env.sm_model_world = True
         model.learn(total_timesteps=6)
 
-        if epoch % 50 == 0 or epoch == (epoch_num - 1):
+        if epoch % 100 == 0 or epoch == (epoch_num - 1):
             env.sm_model_world = False
-            mean_reward, std_reward = evaluate_RL(env, model, num_episodes=3)
+            mean_r, std_r, mean_y, std_y = evaluate_RL(env, model, num_episodes=3)
 
-            if best_r < mean_reward:
-                best_r = mean_reward
+            if best_r < mean_r:
+                best_r = mean_r
                 model.save(log_path + "/best_model")
 
-            r_m_each_epoch.append(mean_reward)
-            r_s_each_epoch.append(std_reward)
+            r_m_each_epoch.append(mean_r)
+            r_s_each_epoch.append(std_r)
 
             np.savetxt(log_path + "/reward_mean.csv", np.asarray(r_m_each_epoch))
             np.savetxt(log_path + "/reward_std.csv", np.asarray(r_s_each_epoch))
@@ -420,6 +421,7 @@ if __name__ == '__main__':
             os.mkdir(log_path)
         except:
             pass
+
         collect_sm_data(step_num=data_num)
 
     # Train self-model

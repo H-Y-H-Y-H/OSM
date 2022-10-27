@@ -26,7 +26,7 @@ def collect_dyna_sm_data(step_num, use_policy, choose_a, num_candidate=1000):
             obs = np.copy(obs_)
             R.append(r)
 
-            if done or ((step + 1) % step_each_epoch == 0):
+            if done or ((step + 1) % NUM_EACH_CYCLE == 0):
                 obs = env.reset()
                 print(done, step)
 
@@ -78,7 +78,6 @@ def collect_dyna_sm_data(step_num, use_policy, choose_a, num_candidate=1000):
                 choose_a = call_max_reward_action()
                 choose_a = choose_a.cpu().detach().numpy()
 
-
     S, A, NS, R, select_ra_ornot = np.array(S), np.array(A), np.array(NS), np.array(R), np.array(select_ra_ornot)
 
     train_data_num = int(step_num * 0.8)
@@ -109,7 +108,7 @@ class SAS_data(Dataset):
 
         self.all_S = SAS_data[0]
         self.all_A = SAS_data[1]
-        self.all_NS= SAS_data[2]
+        self.all_NS = SAS_data[2]
         self.all_R = SAS_data[3]
 
     def __getitem__(self, idx):
@@ -211,28 +210,28 @@ def train_dyna_sm(train_dataset, test_dataset):
 
 
 if __name__ == "__main__":
-    step_each_epoch = 6
-    dof = 12
-    state_def = 2
-    print("state_def:", state_def)
 
-    render_flag = False
-    Train_flag = True
+    dof = 4
+    sub_process = 0
+    print("DOF:", dof)
 
-    # render_flag = True
-    # Train_flag = False
+    # render_flag = False
+    # Train_flag = True
 
-    log_path = 'data/dof%d/state_def%d/dyna_sm/sm_model/' % (dof, state_def)
+    render_flag = True
+    Train_flag = False
+
+    log_path = 'data/dof%d/state_def2/dyna_sm/sm_model/' % (dof)
     initial_para = np.loadtxt("controller100/control_para/para.csv")
     para_space = np.loadtxt("controller100/control_para/para_range.csv")
 
-    mode = 1
-    # 0-4: choose_a normal
-    # 5-9: select new choose_a if done.
+    mode = 5
 
     if mode != 5:
         env = OSM_Env(dof, render_flag, initial_para, para_space, urdf_path="CAD2URDF/V000/urdf/V000.urdf",
-                      data_save_pth=log_path, state_def=state_def)
+                      data_save_pth=log_path)
+    else:
+        env = 0
 
     if mode == 0:
         NUM_EACH_CYCLE = 6
@@ -240,20 +239,15 @@ if __name__ == "__main__":
         batchsize = 6
         lr = 1e-4
 
-        sub_process = 8
+        print('sub_process: ', sub_process)
+        torch.manual_seed(sub_process)
 
         sm_model = FastNN(18 + 16, 18)
         sm_model.to(device)
 
-        try:
-            os.mkdir(log_path + "train/%ddata/CYECLE_%d/" % (num_cycles, NUM_EACH_CYCLE))
-        except OSError:
-            pass
+        os.makedirs(log_path + "train/%ddata/CYECLE_%d/" % (num_cycles, NUM_EACH_CYCLE), exist_ok=True)
 
-        try:
-            os.mkdir(log_path + "train/%ddata/CYECLE_%d/%d/" % (num_cycles, NUM_EACH_CYCLE, sub_process))
-        except OSError:
-            pass
+        os.makedirs(log_path + "train/%ddata/CYECLE_%d/%d/" % (num_cycles, NUM_EACH_CYCLE, sub_process), exist_ok=True)
 
         log_path = log_path + "train/%ddata/CYECLE_%d/%d/" % (num_cycles, NUM_EACH_CYCLE, sub_process)
 
@@ -262,7 +256,7 @@ if __name__ == "__main__":
         train_SAS, test_SAS, choose_a, sele_list = collect_dyna_sm_data(step_num=NUM_EACH_CYCLE, use_policy=0,
                                                                         choose_a=choose_a)
         train_data = SAS_data(SAS_data=train_SAS)
-        test_data = SAS_data( SAS_data=test_SAS)
+        test_data = SAS_data(SAS_data=test_SAS)
 
         log_valid_loss = []
         log_action_choose = []
@@ -297,15 +291,17 @@ if __name__ == "__main__":
         NUM_EACH_CYCLE = 6
         mean_list = []
         epoch_num = 1000
-        X = np.asarray(range(750)) * NUM_EACH_CYCLE
-        for sub_prcess in [6,7,9]:
+
+        for sub_prcess in [3]:
             sub_log_path = log_path + "train/%ddata/CYECLE_%d/%d/" % (epoch_num, NUM_EACH_CYCLE, sub_prcess)
-            sm_valid_loss = np.loadtxt(sub_log_path + 'sm_valid_loss.csv')[:750]
+            sm_valid_loss = np.loadtxt(sub_log_path + 'sm_valid_loss.csv')
             # plt.plot(X,sm_valid_loss,label='id: %d'%sub_prcess)
             mean_list.append(sm_valid_loss)
 
         mean_all_data = np.mean(mean_list, axis=0)
         std_all_data = np.std(mean_list, axis=0)
+
+        X = np.asarray(range(len(mean_all_data))) * NUM_EACH_CYCLE
 
         plt.fill_between(X, mean_all_data - std_all_data, mean_all_data + std_all_data, alpha=0.2)
         plt.plot(X, mean_all_data)
@@ -329,20 +325,24 @@ if __name__ == "__main__":
         # plt.show()
 
     if mode == 2:
+
         NUM_EACH_CYCLE = 6
-        sub_process = 9
+        torch.manual_seed(sub_process)
 
-        sub_log_path = log_path + "train/50data/CYECLE_%d/%d/" % (NUM_EACH_CYCLE, sub_process)
-
-        sm_model.load_state_dict(torch.load(sub_log_path + 'best_model.pt', map_location=torch.device(device)))
+        sub_log_path = log_path + "train/1000data/CYECLE_%d/%d/" % (NUM_EACH_CYCLE, sub_process)
+        sm_model = FastNN(18 + 16, 18)
         sm_model.to(device)
+
+        data_num = 650
+        sm_model.load_state_dict(torch.load(sub_log_path + 'model_%d' % data_num, map_location=torch.device(device)))
 
         log_path += '/test/'
         try:
             os.mkdir(log_path)
         except OSError:
             pass
-        test_sm(sm_model, env, log_path, TASK='f', eval_epoch_num=20)
+
+        test_sm(sm_model, env, log_path, TASK='f', eval_epoch_num=5)
 
     # Show pred plots
     if mode == 4:
@@ -372,36 +372,49 @@ if __name__ == "__main__":
         plt.show()
 
     if mode == 5:
+        NUM_EACH_CYCLE = 6
 
-        NUM_EACH_CYCLE = 60
+        print("sub_process ", sub_process)
+        torch.manual_seed(0)
 
-        sub_process = 0
+        sm_log_path = log_path + "train/1000data/CYECLE_%d/%d/" % (NUM_EACH_CYCLE, sub_process)
+        sm_model = FastNN(18 + 16, 18)
 
         try:
-            os.mkdir(log_path + "rl_sm/CYECLE_%d/" % NUM_EACH_CYCLE)
+            os.mkdir(log_path + "trainRL/CYECLE_%d/" % NUM_EACH_CYCLE)
         except OSError:
             pass
 
+        smrl_model_path = log_path + "trainRL/CYECLE_%d/%d/" % (NUM_EACH_CYCLE, sub_process)
+
         try:
-            os.mkdir(log_path + "rl_sm/CYECLE_%d/%d/" % (NUM_EACH_CYCLE, sub_process))
+            os.mkdir(smrl_model_path)
         except OSError:
             pass
 
-        model_path = log_path + "train/CYECLE_%d/%d/" % (NUM_EACH_CYCLE, sub_process)
+        data_logger = []
+        for data_num in [100]:  # 100, 500
+            # Load self-model
+            sm_model.load_state_dict(torch.load(sm_log_path + 'model_%d' % data_num, map_location=torch.device(device)))
+            sm_model.to(device)
+            sm_model.eval()
 
-        # Load self-model
-        sm_model.load_state_dict(torch.load(model_path + 'model_10', map_location=torch.device(device)))
-        sm_model.to(device)
-        sm_model.eval()
+            # smrl_model_num_path = smrl_model_path + "data_%d_r_pen0.1/" % (data_num)
+            smrl_model_num_path = smrl_model_path + "data_%d/" % (data_num)
 
-        log_path = log_path + '/rl_sm/CYECLE_%d/%d/' % (NUM_EACH_CYCLE, sub_process)
+            os.makedirs(smrl_model_num_path, exist_ok=True)
 
-        env = OSM_Env(dof, render_flag, initial_para, para_space, urdf_path="CAD2URDF/V000/urdf/V000.urdf",
-                      data_save_pth=log_path, sm_world=sm_model, state_def=state_def)
+            env = OSM_Env(dof, render_flag, initial_para, para_space, urdf_path="CAD2URDF/V000/urdf/V000.urdf",
+                          data_save_pth=None, sm_world=sm_model)
 
-        if Train_flag:
-            model = PPO("MlpPolicy", env, n_steps=6, verbose=0, batch_size=6)
-            train_agent_with_sm(env, model, log_path)
-        else:
-            model = PPO.load(log_path + "best_model", env)
-            mean_reward_before_train, std_reward_before_train = evaluate_RL(env, model, num_episodes=20)
+            if Train_flag:
+                model = PPO("MlpPolicy", env, n_steps=6, verbose=0, batch_size=6)
+                train_agent_with_sm(env, model, smrl_model_num_path)
+            else:
+                # model = PPO.load(smrl_model_num_path + "best_model", env)
+                model = PPO.load(smrl_model_num_path + "model1400.zip", env)
+
+                mean_r, std_r, mean_y, std_y = evaluate_RL(env, model, num_episodes=5)
+                data_logger.append([mean_r, std_r, mean_y, std_y])
+
+                # np.savetxt(smrl_model_num_path + 'smrl_result_n20.csv', np.asarray(data_logger))
