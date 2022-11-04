@@ -40,6 +40,8 @@ def evaluate_RL(eval_env, model, steps_each_episode=6):
     print("Y", pos[1])
 
     return episode_rewards, pos[1]
+
+
 def train_agent(epoch_num=6400, num_step_for_eval=300):
     # Random Agent, before training
     mean_reward_before_train, std_reward_before_train = evaluate_RL(env, model, num_episodes=3)
@@ -313,11 +315,11 @@ def test_sm(sm_model, env, log_path, Action_array = None, TASK='f', eval_epoch_n
 
 def train_agent_with_sm(env, model, log_path):
     # Random Agent, before training
-    mean_r, std_r, mean_y, std_y = evaluate_RL(env, model, num_episodes=3)
-    r_m_each_epoch = [mean_r]
-    r_s_each_epoch = [std_r]
+    r,y = evaluate_RL(env, model)
+    r_m_each_epoch = [r]
+    r_s_each_epoch = [y]
 
-    epoch_num = 6000
+    epoch_num = 4000
     best_r = -np.inf
 
     for epoch in range(epoch_num):
@@ -325,25 +327,22 @@ def train_agent_with_sm(env, model, log_path):
         env.sm_model_world = True
         model.learn(total_timesteps=6)
 
-        if epoch % 100 == 0 or epoch == (epoch_num - 1):
+        if epoch % 50 == 0 or epoch == (epoch_num - 1):
             env.sm_model_world = False
-            mean_r, std_r, mean_y, std_y = evaluate_RL(env, model, num_episodes=3)
+            r, y = evaluate_RL(env, model)
 
-            if best_r < mean_r:
-                best_r = mean_r
+            if best_r < r:
+                best_r = r
                 model.save(log_path + "/best_model")
 
-            r_m_each_epoch.append(mean_r)
-            r_s_each_epoch.append(std_r)
+            r_m_each_epoch.append(r)
 
-            np.savetxt(log_path + "/reward_mean.csv", np.asarray(r_m_each_epoch))
-            np.savetxt(log_path + "/reward_std.csv", np.asarray(r_s_each_epoch))
+            np.savetxt(log_path + "/reward_each_eval.csv", np.asarray(r_m_each_epoch))
             model.save(log_path + "/model%d" % (epoch))
 
     np.savetxt(log_path + "/reward_mean.csv", np.asarray(r_m_each_epoch))
-    np.savetxt(log_path + "/reward_std.csv", np.asarray(r_s_each_epoch))
     plt.errorbar(range(len(r_m_each_epoch)), r_m_each_epoch, r_s_each_epoch)
-    plt.savefig(log_path + "rewards_plot.png")
+
 
 
 if __name__ == '__main__':

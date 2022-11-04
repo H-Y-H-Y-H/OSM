@@ -13,17 +13,13 @@ else:
 
 
 class OSM_Env(gym.Env):
-    def __init__(self, dof, render, para, noise_para, data_save_pth, robot_camera=False, urdf_path='CAD2URDF',
+    def __init__(self, dof, para, noise_para, data_save_pth, robot_camera=False, urdf_path='CAD2URDF',
                  sm_world=None, TASK='f'):
         self.choose_a = None
         self.save_pth = data_save_pth  # save SAS data
 
-        if render:
-            p.connect(p.GUI)
-            self.spt = 0  # 1/2000  # decrease the value if it is too slow.
-        else:
-            p.connect(p.DIRECT)
-            self.spt = 0  # decrease the value if it is too slow.
+
+        self.spt = 0  # decrease the value if it is too slow.
 
         self.robotid = None
         self.v_p = None
@@ -56,11 +52,16 @@ class OSM_Env(gym.Env):
         self.sm_pred_error_list = []
 
         self.robot_type = [[3, 6],
-                           [0, 3, 6, 9],
+                           [3, 4, 6, 7],
                            [0, 3, 4, 6, 7, 9],
                            [0, 1, 3, 4, 6, 7, 9, 10],
                            [0, 1, 3, 4, 5, 6, 7, 8, 9, 10],
                            [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]]
+
+                    # dof 4, C0: [0, 3, 6, 9],
+
+
+
         self.robot_actuated = self.robot_type[(self.dof - 1) // 2]
         self.sm_model = sm_world
         self.sm_model_world = False
