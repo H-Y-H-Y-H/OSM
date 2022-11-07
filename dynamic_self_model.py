@@ -11,7 +11,7 @@ print("Device:", device)
 
 
 def collect_dyna_sm_data(step_num, use_policy, choose_a, num_candidate=1000):
-    S, A, NS, R, select_ra_ornot = [], [], [], [], []
+    S, A, NS, R, DONE, select_ra_ornot = [], [], [], [], [], []
     obs = env.reset()
 
     if use_policy == 0:
@@ -50,11 +50,11 @@ def collect_dyna_sm_data(step_num, use_policy, choose_a, num_candidate=1000):
             all_a_rewards = 3 * pred_ns_numpy[:, 1] - abs(pred_ns_numpy[:, 5]) - 0.5 * abs(pred_ns_numpy[:, 0])
 
             greedy_select = int(np.argmax(all_a_rewards))
-            if greedy_select > 500:
+            if greedy_select > 500:             # new random action
                 select_ra_ornot.append(0)
-            elif greedy_select == 0:
+            elif greedy_select == 0:            # previous best action (recommendation)
                 select_ra_ornot.append(2)
-            else:
+            else:                               # Noise + previous best action
                 select_ra_ornot.append(1)
 
             choose_a = A_array_numpy[greedy_select]
@@ -71,6 +71,7 @@ def collect_dyna_sm_data(step_num, use_policy, choose_a, num_candidate=1000):
             NS.append(obs_)
             obs = np.copy(obs_)
             R.append(r)
+            DONE.append(done)
 
             if done:
                 print("bad case: done->1, loss: %5f and r: %5f " % (np.mean(pred_loss), r))
@@ -78,7 +79,8 @@ def collect_dyna_sm_data(step_num, use_policy, choose_a, num_candidate=1000):
                 choose_a = call_max_reward_action()
                 choose_a = choose_a.cpu().detach().numpy()
 
-    S, A, NS, R, select_ra_ornot = np.array(S), np.array(A), np.array(NS), np.array(R), np.array(select_ra_ornot)
+    S, A, NS, R, DONE, select_ra_ornot = np.array(S), np.array(A), np.array(NS), np.array(R), np.array(DONE), np.array(
+        select_ra_ornot)
 
     train_data_num = int(step_num * 0.8)
     idx_list = np.arange(step_num)
@@ -92,7 +94,7 @@ def collect_dyna_sm_data(step_num, use_policy, choose_a, num_candidate=1000):
                 NS[idx_list][train_data_num:],
                 R[idx_list][train_data_num:]]
 
-    return train_SAS, test_SAS, choose_a, select_ra_ornot
+    return train_SAS, test_SAS, choose_a, select_ra_ornot, DONE
 
 
 def call_max_reward_action():
@@ -135,7 +137,7 @@ class SAS_data(Dataset):
         self.all_A = np.vstack((self.all_A, A_data))
         self.all_NS = np.vstack((self.all_NS, NS_data))
         self.all_R = np.hstack((self.all_R, all_R))
-        return [self.all_S, self.all_A, self.all_NS, self.all_R]
+        # return [self.all_S, self.all_A, self.all_NS, self.all_R]
 
 
 def train_dyna_sm(train_dataset, test_dataset):
@@ -211,32 +213,30 @@ def train_dyna_sm(train_dataset, test_dataset):
 
 if __name__ == "__main__":
 
-    dof = 4
-    sub_process = 0
+    dof = 12
+    sub_process = 5
     print("DOF:", dof)
 
     Train_flag = True
 
-    # Train_flag = False
+    mode = 5
 
     if not Train_flag:
         p.connect(p.GUI)
     else:
         p.connect(p.DIRECT)
-    log_path = 'data/dof%d/state_def2/dyna_sm/sm_model/' % (dof)
+    log_path = 'data/dof%d/sm_model/' % dof
     initial_para = np.loadtxt("controller100/control_para/para.csv")
     para_space = np.loadtxt("controller100/control_para/para_range.csv")
 
-    mode = 5
     if mode != 5:
-        env = OSM_Env(dof, initial_para, para_space, urdf_path="CAD2URDF/V000/urdf/V000.urdf",
-                      data_save_pth=log_path)
+        env = OSM_Env(dof, initial_para, para_space, urdf_path="CAD2URDF/V000/urdf/V000.urdf", data_save_pth=log_path)
     else:
         env = 0
 
     if mode == 0:
         NUM_EACH_CYCLE = 6
-        num_cycles = 200
+        num_cycles = 100
         batchsize = 6
         lr = 1e-4
 
@@ -246,16 +246,16 @@ if __name__ == "__main__":
         sm_model = FastNN(18 + 16, 18)
         sm_model.to(device)
 
-        os.makedirs(log_path + "train/%ddata/CYECLE_%d/" % (num_cycles, NUM_EACH_CYCLE), exist_ok=True)
+        os.makedirs(log_path + "train/%ddata/CYCLE_%d/" % (num_cycles, NUM_EACH_CYCLE), exist_ok=True)
 
-        os.makedirs(log_path + "train/%ddata/CYECLE_%d/%d/" % (num_cycles, NUM_EACH_CYCLE, sub_process), exist_ok=True)
+        os.makedirs(log_path + "train/%ddata/CYCLE_%d/%d/" % (num_cycles, NUM_EACH_CYCLE, sub_process), exist_ok=True)
 
-        log_path = log_path + "train/%ddata/CYECLE_%d/%d/" % (num_cycles, NUM_EACH_CYCLE, sub_process)
+        log_path = log_path + "train/%ddata/CYCLE_%d/%d/" % (num_cycles, NUM_EACH_CYCLE, sub_process)
 
         optimizer = torch.optim.Adam(sm_model.parameters(), lr=lr)
         choose_a = np.random.uniform(-1, 1, size=16)
-        train_SAS, test_SAS, choose_a, sele_list = collect_dyna_sm_data(step_num=NUM_EACH_CYCLE, use_policy=0,
-                                                                        choose_a=choose_a)
+        train_SAS, test_SAS, choose_a, sele_list, DONE = collect_dyna_sm_data(step_num=NUM_EACH_CYCLE, use_policy=0,
+                                                                              choose_a=choose_a)
         train_data = SAS_data(SAS_data=train_SAS)
         test_data = SAS_data(SAS_data=test_SAS)
 
@@ -265,10 +265,11 @@ if __name__ == "__main__":
             print(epoch_i)
             sm_train_valid_loss = train_dyna_sm(train_data, test_data)
 
-            train_SAS, test_SAS, choose_a, sub_sele_list = collect_dyna_sm_data(step_num=NUM_EACH_CYCLE, use_policy=1,
-                                                                                choose_a=choose_a)
-            trainS, trainA, trainNS, trainR = train_data.add_data(train_SAS)
-            testS, testA, testNS, testR = test_data.add_data(test_SAS)
+            train_SAS, test_SAS, choose_a, sub_sele_list, DONE = collect_dyna_sm_data(step_num=NUM_EACH_CYCLE,
+                                                                                      use_policy=1,
+                                                                                      choose_a=choose_a)
+            train_data.add_data(train_SAS)
+            test_data.add_data(test_SAS)
 
             sele_list = np.hstack((sele_list, sub_sele_list))
             log_valid_loss.append(sm_train_valid_loss)
@@ -282,6 +283,73 @@ if __name__ == "__main__":
                 np.savetxt(log_path + "sm_action_choose.csv", np.asarray(log_action_choose))
                 np.savetxt(log_path + "choice_range.csv", sele_list)
 
+    if mode == 0.5:
+        NUM_EACH_CYCLE = 6
+        batchsize = 6
+        max_num_cycles = 1000
+        lr = 1e-4
+
+        print('sub_process: ', sub_process)
+        torch.manual_seed(sub_process)
+
+        sm_model = FastNN(18 + 16, 18)
+        sm_model.to(device)
+
+        log_path = log_path + "train/auto_stop/CYCLE_%d/%d/" % (NUM_EACH_CYCLE, sub_process)
+        os.makedirs(log_path, exist_ok=True)
+
+        optimizer = torch.optim.Adam(sm_model.parameters(), lr=lr)
+        choose_a = np.random.uniform(-1, 1, size=16)
+        train_SAS, test_SAS, choose_a, sele_list, done_list = collect_dyna_sm_data(step_num=NUM_EACH_CYCLE,
+                                                                                   use_policy=0,
+                                                                                   choose_a=choose_a)
+        train_data = SAS_data(SAS_data=train_SAS)
+        test_data = SAS_data(SAS_data=test_SAS)
+
+        log_valid_loss, log_action_choose, log_rewards, log_done = [], [], [], []
+        reward_bar = -np.inf
+        loss_bar = np.inf
+        abort_count = 0
+        max_abort_count = 50
+        for epoch_i in range(max_num_cycles):
+            print('Epoch:%d, Abort_count:%d:' % (epoch_i, abort_count))
+
+            sm_train_valid_loss = train_dyna_sm(train_data, test_data)
+            train_SAS, test_SAS, choose_a, sub_sele_list, done_list = collect_dyna_sm_data(step_num=NUM_EACH_CYCLE,
+                                                                                           use_policy=1,
+                                                                                           choose_a=choose_a)
+            train_data.add_data(train_SAS)
+            test_data.add_data(test_SAS)
+            sele_list = np.hstack((sele_list, sub_sele_list))
+            log_valid_loss.append(sm_train_valid_loss)
+            log_action_choose.append(choose_a)
+            accumulated_R = np.sum(train_SAS[3]) + np.sum(test_SAS[3])
+            log_rewards.append(accumulated_R)
+            log_done.append(np.sum(done_list))
+
+            # save data
+            if ((epoch_i + 1) % 50 == 0) or (epoch_i == 165):
+                PATH = log_path + "/model_%d" % (epoch_i + 1)
+                torch.save(sm_model.state_dict(), PATH)
+                np.savetxt(log_path + "sm_valid_loss.csv", np.asarray(log_valid_loss))
+                np.savetxt(log_path + "sm_action_choose.csv", np.asarray(log_action_choose))
+                np.savetxt(log_path + "choice_range.csv", sele_list)
+                np.savetxt(log_path + "sm_rewards.csv", np.asarray(log_rewards))
+                np.savetxt(log_path + "epoch_done.csv", np.asarray(log_done))
+
+            print("R_per_epoch: ", accumulated_R)
+            print("---------------------")
+
+            if (accumulated_R > reward_bar):
+                abort_count = 0
+                reward_bar = accumulated_R
+                loss_bar = sm_train_valid_loss
+            else:
+                print('done_list: ', done_list)
+                abort_count += 1
+
+            if abort_count >= max_abort_count:
+                break
 
     if mode == 1:
         NUM_EACH_CYCLE = 6
@@ -325,12 +393,13 @@ if __name__ == "__main__":
         NUM_EACH_CYCLE = 6
         torch.manual_seed(sub_process)
 
-        sub_log_path = log_path + "train/1000data/CYECLE_%d/%d/" % (NUM_EACH_CYCLE, sub_process)
+        sub_log_path = log_path + "train/100data/CYCLE_%d/%d/" % (NUM_EACH_CYCLE, sub_process)
         sm_model = FastNN(18 + 16, 18)
         sm_model.to(device)
 
-        data_num = 650
+        data_num = 100
         sm_model.load_state_dict(torch.load(sub_log_path + 'model_%d' % data_num, map_location=torch.device(device)))
+        # sm_model.load_state_dict(torch.load(sub_log_path + 'best_model.pt', map_location=torch.device(device)))
 
         log_path += '/test/'
         try:
@@ -376,25 +445,25 @@ if __name__ == "__main__":
             print("sub_process ", sub_process)
             torch.manual_seed(sub_process)
 
-            sm_log_path = log_path + "train/1000data/CYECLE_%d/%d/" % (NUM_EACH_CYCLE, sub_process)
+            sm_log_path = log_path + "train/100data/CYCLE_%d/%d/" % (NUM_EACH_CYCLE, sub_process)
             sm_model = FastNN(18 + 16, 18)
 
-            os.makedirs(log_path + "trainRL/CYECLE_%d/" % NUM_EACH_CYCLE,exist_ok=True)
+            os.makedirs(log_path + "trainRL/CYCLE_%d/" % NUM_EACH_CYCLE, exist_ok=True)
 
-            smrl_model_path = log_path + "trainRL/CYECLE_%d/%d/" % (NUM_EACH_CYCLE, sub_process)
+            smrl_model_path = log_path + "trainRL/CYCLE_%d/%d/" % (NUM_EACH_CYCLE, sub_process)
 
-            os.makedirs(smrl_model_path,exist_ok=True)
-
+            os.makedirs(smrl_model_path, exist_ok=True)
 
             for data_num in [100]:  # 100, 500
 
                 # Load self-model
-                sm_model.load_state_dict(torch.load(sm_log_path + 'model_%d' % data_num, map_location=torch.device(device)))
+                sm_model.load_state_dict(
+                    torch.load(sm_log_path + 'model_%d' % data_num, map_location=torch.device(device)))
                 sm_model.to(device)
                 sm_model.eval()
 
                 # smrl_model_num_path = smrl_model_path + "data_%d_r_pen0.1/" % (data_num)
-                smrl_model_num_path = smrl_model_path + "data_%d/" % (data_num)
+                smrl_model_num_path = smrl_model_path + "data_%d/" % data_num
 
                 os.makedirs(smrl_model_num_path, exist_ok=True)
 
@@ -412,6 +481,6 @@ if __name__ == "__main__":
                     data_logger.append([r, y])
 
         data_logger = np.asarray(data_logger)
-        np.savetxt(log_path + "train/1000data/CYECLE_6/dof12_n10_100epoch.csv",data_logger )
-        print(np.mean(data_logger[:,0]), np.std(data_logger[:,0]))
-        print(np.mean(data_logger[:,1]), np.std(data_logger[:,1]))
+        np.savetxt(log_path + "train/100data/CYECLE_6/dof12_n10_100epoch.csv", data_logger)
+        print(np.mean(data_logger[:, 0]), np.std(data_logger[:, 0]))
+        print(np.mean(data_logger[:, 1]), np.std(data_logger[:, 1]))

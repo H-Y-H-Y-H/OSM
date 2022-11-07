@@ -30,10 +30,11 @@ def evaluate_RL(eval_env, model, steps_each_episode=6):
         action, _ = model.predict(obs, deterministic=True)
         obs, r, done, _ = eval_env.step(action)
         action_list.append(action)
+        episode_rewards += r
         if done:
             print("fail")
             break
-        episode_rewards += r
+
 
     pos, ori = eval_env.robot_location()
     print("rewards", episode_rewards)
@@ -294,6 +295,9 @@ def test_sm(sm_model, env, log_path, Action_array = None, TASK='f', eval_epoch_n
             print(pos_log, ori_log, a, b, c)
             rob_pos_ori.append(np.concatenate((ori_log, pos_log)))
 
+            if done:
+                print("fail")
+                break
 
         log_y.append(pos_log[1])
         log_results.append(real_reward)

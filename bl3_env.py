@@ -52,7 +52,7 @@ class OSM_Env(gym.Env):
         self.sm_pred_error_list = []
 
         self.robot_type = [[3, 6],
-                           [3, 4, 6, 7],
+                           [0, 3, 6, 9],
                            [0, 3, 4, 6, 7, 9],
                            [0, 1, 3, 4, 6, 7, 9, 10],
                            [0, 1, 3, 4, 5, 6, 7, 8, 9, 10],
@@ -173,7 +173,7 @@ class OSM_Env(gym.Env):
                                     maxVelocity=100)
         for _ in range(40):
             p.stepSimulation()
-            # time.sleep(1/240)
+        # time.sleep(1/240)
 
         self.p, self.q = p.getBasePositionAndOrientation(self.robotid)
         self.q = p.getEulerFromQuaternion(self.q)
@@ -214,6 +214,8 @@ class OSM_Env(gym.Env):
         # r -= np.mean((self.choose_a - a) ** 2) * 0.1
 
         Done = self.check()
+        if Done:
+            r -=2
 
         self.log_obs.append(obs)
         self.log_action.append(a)
@@ -251,7 +253,7 @@ if __name__ == '__main__':
 
     # Run Sin Gait Baseline
     data_path = "controller100/control_para/dof12/"
-    log_path = 'data/dof12/'
+    log_path = 'data/origin_para/dof12/'
     inital_para = np.loadtxt("controller100/control_para/dof12/0.csv")
     para_space = np.asarray([0.6, 0.6,
                              0.6, 0.6, 0.6, 0.6,
@@ -261,7 +263,7 @@ if __name__ == '__main__':
     # para = np.loadtxt(data_path + "0.csv")
 
     # Run the trajectory commands
-    action_file = np.loadtxt("data/dof12/state_def2/dyna_sm/sm_model/train/1000data/CYECLE_6/5/trainA.csv")
+    action_file = np.loadtxt("data/origin_para/dof12/sm_model/train/1000data/CYECLE_6/5/trainA.csv")
     results = []
     render_flag = True
     env = OSM_Env(12, render_flag, inital_para, para_space, urdf_path="CAD2URDF/V000/urdf/V000.urdf",
