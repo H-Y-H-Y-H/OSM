@@ -48,6 +48,12 @@ def collect_dyna_sm_data(step_num, use_policy, choose_a, num_candidate=1000):
             pred_ns = sm_model.forward(S_array, A_array)
             pred_ns_numpy = pred_ns[0].cpu().detach().numpy()
 
+            # Conf threshold:
+            pred_ns_conf = pred_ns_numpy[:,-1]
+            confidence_select = np.argsort(pred_ns_conf)[-50:]
+
+            pred_ns_numpy = pred_ns_numpy[confidence_select]
+            A_array_numpy = A_array_numpy[confidence_select]
 
             # Task:
             all_a_rewards = 3 * pred_ns_numpy[:, 1] - abs(pred_ns_numpy[:, 5]) - 0.5 * abs(pred_ns_numpy[:, 0])
@@ -65,8 +71,8 @@ def collect_dyna_sm_data(step_num, use_policy, choose_a, num_candidate=1000):
 
             obs_, r, done, _ = env.step(choose_a)
 
-            gt = np.copy(obs_)
-            loss = np.mean((gt - pred) ** 2)
+            gt = np.copy(obs_[-18:])
+            loss = sm_model.loss_numpy(pred, gt, done)
             pred_loss.append(loss)
 
             A.append(choose_a)
@@ -77,7 +83,7 @@ def collect_dyna_sm_data(step_num, use_policy, choose_a, num_candidate=1000):
             DONE.append(done)
 
             if done:
-                print("bad case: done->1, loss: %5f and r: %5f " % (np.mean(pred_loss), r))
+                print("bad case: done->1, loss: %5f and r: %5f " % (float(np.mean(pred_loss)), r))
                 obs = env.reset()
                 choose_a = call_max_reward_action()
                 choose_a = choose_a.cpu().detach().numpy()
@@ -170,7 +176,7 @@ def train_dyna_sm(train_dataset, test_dataset):
         for batch in train_dataloader:
             S, A, NS, R, DONE = batch["S"], batch["A"], batch["NS"], batch['R'], batch['DONE']
             pred_NS = sm_model.forward(S, A)
-            loss = sm_model.loss(pred_NS, NS)
+            loss = sm_model.loss(pred_NS, NS, DONE)
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
@@ -184,7 +190,7 @@ def train_dyna_sm(train_dataset, test_dataset):
             for batch in valid_dataloader:
                 S, A, NS,DONE = batch["S"], batch["A"], batch["NS"], batch['DONE']
                 pred_NS = sm_model.forward(S, A)
-                loss = sm_model.loss(pred_NS, NS)
+                loss = sm_model.loss(pred_NS, NS,DONE)
                 valid_L.append(loss.item())
 
         avg_valid_L = np.mean(valid_L)
@@ -225,9 +231,9 @@ if __name__ == "__main__":
     dof = 12
     print("DOF:", dof)
 
-    Train_flag = True
+    Train_flag = False
 
-    mode = 5
+    mode = 2
 
     if not Train_flag:
         p.connect(p.GUI)
@@ -246,14 +252,14 @@ if __name__ == "__main__":
 
     if mode == 0:
         NUM_EACH_CYCLE = 6
-        num_cycles = 100
+        num_cycles = 150
         batchsize = 6
         lr = 1e-4
-        for sub_process in [9]:
+        for sub_process in [4]:
             print('sub_process: ', sub_process)
             torch.manual_seed(sub_process)
 
-            sm_model = FastNN(18 + 16, 18, activation_fun='Relu')
+            sm_model = FastNN(18 + 16, 18, activation_fun='Relu', confidence=True)
             sm_model.to(device)
 
             os.makedirs(log_path + "train/%ddata/CYCLE_%d/" % (num_cycles, NUM_EACH_CYCLE), exist_ok=True)
@@ -272,12 +278,8 @@ if __name__ == "__main__":
 
             log_valid_loss = []
             log_action_choose = []
-            t2 = 0
-            t1 = 0
             for epoch_i in range(num_cycles):
-
-                print(epoch_i, "time used: ", t2-t1)
-                t1 = time.time()
+                print(epoch_i)
                 sm_train_valid_loss = train_dyna_sm(train_data, test_data)
 
                 train_SAS, test_SAS, choose_a, sub_sele_list, DONE = collect_dyna_sm_data(step_num=NUM_EACH_CYCLE,
@@ -289,7 +291,6 @@ if __name__ == "__main__":
                 sele_list = np.hstack((sele_list, sub_sele_list))
                 log_valid_loss.append(sm_train_valid_loss)
                 log_action_choose.append(choose_a)
-                t2 = time.time()
 
                 # save data
                 if ((epoch_i + 1) % 50 == 0) or (epoch_i == 165):
@@ -405,12 +406,12 @@ if __name__ == "__main__":
         # plt.show()
 
     if mode == 2:
-        sub_process = 0
+        sub_process = 1
         NUM_EACH_CYCLE = 6
         torch.manual_seed(sub_process)
 
-        sub_log_path = log_path + "train/100data/CYCLE_%d/%d/" % (NUM_EACH_CYCLE, sub_process)
-        sm_model = FastNN(18 + 16, 18,activation_fun= "Relu")
+        sub_log_path = log_path + "train/150data/CYCLE_%d/%d/" % (NUM_EACH_CYCLE, sub_process)
+        sm_model = FastNN(18 + 16, 18, activation_fun= "Relu", confidence=1)
         sm_model.to(device)
 
         data_num = 100
@@ -422,7 +423,7 @@ if __name__ == "__main__":
             os.mkdir(log_path)
         except OSError:
             pass
-        # env.spt = 1 / 120
+        env.spt = 1 / 120
         test_sm(sm_model, env, log_path, TASK='f', eval_epoch_num=10)
 
     # Show pred plots
@@ -454,14 +455,14 @@ if __name__ == "__main__":
 
     if mode == 5:
         NUM_EACH_CYCLE = 6
-        data_num1 = 100
+        data_num1 = 200
         data_logger = []
-        for sub_process in [3]:
+        for sub_process in [0]:
             print("sub_process", sub_process)
             torch.manual_seed(sub_process)
 
             sm_log_path = log_path + "train/%ddata/CYCLE_%d/%d/" % (data_num1, NUM_EACH_CYCLE, sub_process)
-            sm_model = FastNN(18 + 16, 18,activation_fun= "Relu")
+            sm_model = FastNN(18 + 16, 18)
 
             os.makedirs(log_path + "trainRL/CYCLE_%d/" % NUM_EACH_CYCLE, exist_ok=True)
 

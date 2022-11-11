@@ -250,8 +250,8 @@ def test_sm(sm_model, env, log_path, Action_array = None, TASK='f', eval_epoch_n
             pred_ns = sm_model.forward(S_array, A_array)
             pred_ns_numpy = pred_ns[0].cpu().detach().numpy()
 
-            # Define Object Function to Compute Rewards
 
+            # Define Object Function to Compute Rewards
             if TASK == "f":
 
                 all_a_rewards = a * pred_ns_numpy[:, 1] - b * abs(pred_ns_numpy[:, 5]) - c * abs(pred_ns_numpy[:, 0])
@@ -287,8 +287,8 @@ def test_sm(sm_model, env, log_path, Action_array = None, TASK='f', eval_epoch_n
             log_action.append(choose_a)
 
             real_reward += r
-            gt = np.copy(obs[-18:])
-
+            gt = np.copy(obs)
+            print('loss: ', sm_model.loss_numpy(pred, gt))
             log_gt.append(gt)
             log_pred.append(pred)
             pos_log, ori_log = env.robot_location()
@@ -326,8 +326,11 @@ def train_agent_with_sm(env, model, log_path):
     epoch_num = 4000
     best_r = -np.inf
 
+    time0 = time.time()
     for epoch in range(epoch_num):
-        print('epoch:%d' % epoch)
+        time1 = time.time()
+        print('epoch:%d' % epoch, time1 - time0)
+        time0 = time.time()
         env.sm_model_world = True
         model.learn(total_timesteps=6)
 
@@ -343,6 +346,8 @@ def train_agent_with_sm(env, model, log_path):
 
             np.savetxt(log_path + "/reward_each_eval.csv", np.asarray(r_m_each_epoch))
             model.save(log_path + "/model%d" % (epoch))
+
+
 
     np.savetxt(log_path + "/reward_mean.csv", np.asarray(r_m_each_epoch))
     plt.errorbar(range(len(r_m_each_epoch)), r_m_each_epoch, r_s_each_epoch)

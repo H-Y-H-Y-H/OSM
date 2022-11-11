@@ -1,12 +1,16 @@
 from torch import nn, optim
 import torch
-
+import numpy as np
 
 class FastNN(nn.Module):
-    def __init__(self, input_size, output_size, activation_fun = 'Tahn'):
+    def __init__(self, input_size, output_size, activation_fun = 'Tahn', confidence = False):
         super(FastNN, self).__init__()
         self.num_layers = 1
         self.hidden_size = 128
+
+        self.confidence = confidence
+        if confidence:
+            output_size += 1
 
         # self.l1 = nn.LSTM(s*3 + a, self.hidden_size, self.num_layers, batch_first = True)
         self.l1 = nn.Linear(input_size, 128)
@@ -25,8 +29,36 @@ class FastNN(nn.Module):
     def reset(self, s):
         pass
 
-    def loss(self, pred, target):
-        return torch.mean((pred - target) ** 2)
+    def loss(self, pred, target, done = False):
+
+        if self.confidence:
+            pred_ = torch.clone(pred)
+            loss_NS = torch.mean((pred_[0,:,:-1] - target) ** 2,dim=1)
+
+            Conf = torch.exp(-(loss_NS)) * (1-done).T
+            gt_combine = torch.hstack((target, Conf.T))
+
+            loss_combine = torch.mean((pred - gt_combine) ** 2)
+
+        else:
+            loss_combine = torch.mean((pred - target) ** 2)
+
+        return loss_combine
+
+    def loss_numpy(self, pred, target, done = False):
+
+        if self.confidence:
+            loss_NS = np.mean((pred[:-1] - target) ** 2)
+
+            Conf = np.exp(-(loss_NS)) * (1-done)
+            target = np.hstack((target,Conf))
+            loss_combine = np.mean((pred - target) ** 2)
+
+
+        else:
+            loss_combine = np.mean((pred - target) ** 2)
+
+        return loss_combine
 
     def forward(self, s, a):
         # x1,(h1,c1) = self.l1(s[0]).unsqueeze(0),(h0,c0))
