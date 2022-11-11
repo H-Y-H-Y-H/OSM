@@ -9,7 +9,7 @@ def_state = 2
 TITLE = "RL: PPO, state: %d n=%d, dof=%d" % (def_state, N, dof)
 
 for i in range(N):
-    mean_data = np.loadtxt('../data/dof%d/state_def%d/rl_model/%d/reward_mean.csv' % (dof, def_state, i))
+    mean_data = np.loadtxt('../data/dof%d/trainRL/CYCLE_6/%d/data_100/reward_mean.csv' % (dof, def_state, i))
     mean_list.append(mean_data)
 
 mean_all_data = np.mean(mean_list, axis=0)

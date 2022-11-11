@@ -224,18 +224,17 @@ if __name__ == "__main__":
 
     dof = 12
     print("DOF:", dof)
-
-    Train_flag = True
-
-    mode = 5
-
-    if not Train_flag:
-        p.connect(p.GUI)
-    else:
-        p.connect(p.DIRECT)
     log_path = 'data/dof%d/sm_model/' % dof
     initial_para = np.loadtxt("controller100/control_para/para.csv")
     para_space = np.loadtxt("controller100/control_para/dof%d/para_range.csv" % dof)
+
+
+    Train_flag = True
+
+    mode = 0.5
+
+    if not Train_flag: p.connect(p.GUI)
+    else: p.connect(p.DIRECT)
 
     if mode != 5:
         env = OSM_Env(dof, initial_para, para_space,
@@ -253,7 +252,7 @@ if __name__ == "__main__":
             print('sub_process: ', sub_process)
             torch.manual_seed(sub_process)
 
-            sm_model = FastNN(18 + 16, 18, activation_fun='Relu')
+            sm_model = FastNN(18 + 16, 18)
             sm_model.to(device)
 
             os.makedirs(log_path + "train/%ddata/CYCLE_%d/" % (num_cycles, NUM_EACH_CYCLE), exist_ok=True)
@@ -304,7 +303,7 @@ if __name__ == "__main__":
         batchsize = 6
         max_num_cycles = 300
         lr = 1e-4
-        sub_process = 3
+        sub_process = 9
         print('sub_process: ', sub_process)
         torch.manual_seed(sub_process)
 
@@ -372,7 +371,7 @@ if __name__ == "__main__":
         mean_list = []
         epoch_num = 100
 
-        for sub_prcess in [0]:
+        for sub_prcess in [9]:
             sub_log_path = log_path + "train/%ddata/CYCLE_%d/%d/" % (epoch_num, NUM_EACH_CYCLE, sub_prcess)
             sm_valid_loss = np.loadtxt(sub_log_path + 'sm_valid_loss.csv')
             # plt.plot(X,sm_valid_loss,label='id: %d'%sub_prcess)
@@ -405,12 +404,12 @@ if __name__ == "__main__":
         # plt.show()
 
     if mode == 2:
-        sub_process = 0
+        sub_process = 9
         NUM_EACH_CYCLE = 6
         torch.manual_seed(sub_process)
 
         sub_log_path = log_path + "train/100data/CYCLE_%d/%d/" % (NUM_EACH_CYCLE, sub_process)
-        sm_model = FastNN(18 + 16, 18,activation_fun= "Relu")
+        sm_model = FastNN(18 + 16, 18)
         sm_model.to(device)
 
         data_num = 100
@@ -456,12 +455,14 @@ if __name__ == "__main__":
         NUM_EACH_CYCLE = 6
         data_num1 = 100
         data_logger = []
-        for sub_process in [3]:
+        for sub_process in range(10):
+            if sub_process == 4:
+                continue
             print("sub_process", sub_process)
             torch.manual_seed(sub_process)
 
             sm_log_path = log_path + "train/%ddata/CYCLE_%d/%d/" % (data_num1, NUM_EACH_CYCLE, sub_process)
-            sm_model = FastNN(18 + 16, 18,activation_fun= "Relu")
+            sm_model = FastNN(18 + 16, 18)
 
             os.makedirs(log_path + "trainRL/CYCLE_%d/" % NUM_EACH_CYCLE, exist_ok=True)
 
@@ -499,3 +500,4 @@ if __name__ == "__main__":
         np.savetxt(log_path + "train/100data/CYCLE_6/dof12_n10_100epoch.csv", data_logger)
         print(np.mean(data_logger[:, 0]), np.std(data_logger[:, 0]))
         print(np.mean(data_logger[:, 1]), np.std(data_logger[:, 1]))
+
