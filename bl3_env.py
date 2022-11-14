@@ -59,10 +59,20 @@ class OSM_Env(gym.Env):
                            [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]]
 
                     # dof 4, C0: [0, 3, 6, 9],
+        if self.dof <=12:
+            self.robot_actuated = self.robot_type[(self.dof - 1) // 2]
+        elif self.dof == 200:
+            self.robot_actuated = [0, 9]
+        elif self.dof == 201:
+            self.robot_actuated = [4, 7]
+        elif self.dof == 202:
+            self.robot_actuated = [1, 10]
+        elif self.dof == 203:
+            self.robot_actuated = [5, 8]
+        elif self.dof == 204:
+            self.robot_actuated = [2, 11]
 
 
-
-        self.robot_actuated = self.robot_type[(self.dof - 1) // 2]
         self.sm_model = sm_world
         self.sm_model_world = False
 
