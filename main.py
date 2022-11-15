@@ -387,7 +387,7 @@ if __name__ == '__main__':
 
     # RL training
     if mode == 0:
-        for sub_process in range(5):
+        for sub_process in range(10):
             log_path = log_path + '/rl_model/%d/' % sub_process
             try:
                 os.mkdir(log_path)

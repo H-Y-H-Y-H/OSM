@@ -222,16 +222,15 @@ def train_dyna_sm(train_dataset, test_dataset):
 
 if __name__ == "__main__":
 
-    dof = 204
+    dof = 4
     print("DOF:", dof)
     log_path = 'data/dof%d/sm_model/' % dof
     initial_para = np.loadtxt("controller100/control_para/para.csv")
     para_space = np.loadtxt("controller100/control_para/dof%d/para_range.csv" % dof)
 
+    Train_flag = False
 
-    Train_flag = True
-
-    mode = 0
+    mode = 5
 
     if not Train_flag: p.connect(p.GUI)
     else: p.connect(p.DIRECT)
@@ -248,7 +247,7 @@ if __name__ == "__main__":
         num_cycles = 100
         batchsize = 6
         lr = 1e-4
-        for sub_process in range(10):
+        for sub_process in range(5, 10):
             print('sub_process: ', sub_process)
             torch.manual_seed(sub_process)
 

@@ -71,6 +71,24 @@ class OSM_Env(gym.Env):
             self.robot_actuated = [5, 8]
         elif self.dof == 204:
             self.robot_actuated = [2, 11]
+        elif self.dof == 400:
+            self.robot_actuated = [0, 3, 6, 9]
+        elif self.dof == 401:
+            self.robot_actuated = [0, 3, 7, 10]
+        elif self.dof == 402:
+            self.robot_actuated = [0, 3, 8, 11]
+        elif self.dof == 403:
+            self.robot_actuated = [1, 4, 6, 9]
+        elif self.dof == 404:
+            self.robot_actuated = [1, 4, 7, 10]
+        elif self.dof == 405:
+            self.robot_actuated = [1, 4, 8, 11]
+        elif self.dof == 406:
+            self.robot_actuated = [2, 5, 6, 9]
+        elif self.dof == 407:
+            self.robot_actuated = [2, 5, 7, 10]
+        elif self.dof == 408:
+            self.robot_actuated = [2, 5, 8, 11]
 
 
         self.sm_model = sm_world
