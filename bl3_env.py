@@ -89,6 +89,70 @@ class OSM_Env(gym.Env):
             self.robot_actuated = [2, 5, 7, 10]
         elif self.dof == 408:
             self.robot_actuated = [2, 5, 8, 11]
+        elif self.dof == 600:
+            self.robot_actuated = [0, 1, 2, 9, 10, 11]
+        elif self.dof == 601:
+            self.robot_actuated = [0, 1, 3, 6, 9, 10]
+        elif self.dof == 602:
+            self.robot_actuated = [0, 1, 3, 6, 9, 10]
+        elif self.dof == 603:
+            self.robot_actuated = [0, 1, 4, 6, 9, 10]
+        elif self.dof == 604:
+            self.robot_actuated = [0, 1, 5, 8, 9, 10]
+        elif self.dof == 605:
+            self.robot_actuated = [0, 2, 3, 6, 9, 11]
+        elif self.dof == 606:
+            self.robot_actuated = [0, 2, 4, 7, 9, 11]
+        elif self.dof == 607:
+            self.robot_actuated = [0, 2, 5, 8, 9, 11]
+        elif self.dof == 608:
+            self.robot_actuated = [1, 2, 3, 6, 10, 11]
+        elif self.dof == 609:
+            self.robot_actuated = [0, 3, 5, 6, 8, 9]
+        elif self.dof == 610:
+            self.robot_actuated = [0, 4, 5, 7, 8, 9]
+        elif self.dof == 611:
+            self.robot_actuated = [3, 4, 5, 6, 7, 8]
+        elif self.dof == 612:
+            self.robot_actuated = [1, 3, 4, 6, 7, 10]
+        elif self.dof == 613:
+            self.robot_actuated = [2, 3, 4, 6, 7, 11]
+        elif self.dof == 614:
+            self.robot_actuated = [1, 3, 5, 6, 8, 10]
+        elif self.dof == 615:
+            self.robot_actuated = [2, 3, 5, 6, 8, 11]
+        elif self.dof == 800:
+            self.robot_actuated = [0, 2, 3, 5, 6, 8, 9, 11]
+        elif self.dof == 801:
+            self.robot_actuated = [0, 1, 2, 3, 6, 9, 10, 11]
+        elif self.dof == 802:
+            self.robot_actuated = [0, 1, 2, 4, 7, 9, 10, 11]
+        elif self.dof == 803:
+            self.robot_actuated = [0, 1, 2, 5, 8, 9, 10, 11]
+        elif self.dof == 804:
+            self.robot_actuated = [0, 3, 4, 5, 6, 7, 8, 9]
+        elif self.dof == 805:
+            self.robot_actuated = [1, 3, 4, 5, 6, 7, 8, 10]
+        elif self.dof == 806:
+            self.robot_actuated = [2, 3, 4, 5, 6, 7, 8, 11]
+        elif self.dof == 1000:
+            self.robot_actuated = [0, 2, 3, 4, 5, 6, 7, 8, 9, 11]
+        elif self.dof == 1001:
+            self.robot_actuated = [1, 2, 3, 4, 5, 6, 7, 8, 10, 11]
+        elif self.dof == 1002:
+            self.robot_actuated = [0, 1, 2, 4, 5, 7, 8, 9, 10, 11]
+        elif self.dof == 1003:
+            self.robot_actuated = [0, 1, 2, 3, 5, 6, 8, 9, 10, 11]
+        elif self.dof == 1004:
+            self.robot_actuated = [0, 1, 2, 3, 4, 6, 7, 9, 10, 11]
+            #####  11            2
+            ##       10       1
+            ######      9   0
+            #             @
+            ###         6   3
+            ###       7        4
+            ##      8            5
+
 
 
         self.sm_model = sm_world
@@ -294,8 +358,7 @@ if __name__ == '__main__':
     action_file = np.loadtxt("data/origin_para/dof12/sm_model/train/1000data/CYECLE_6/5/trainA.csv")
     results = []
     render_flag = True
-    env = OSM_Env(12, render_flag, inital_para, para_space, urdf_path="CAD2URDF/V000/urdf/V000.urdf",
-                  data_save_pth=log_path)
+    env = OSM_Env(12, render_flag, inital_para, para_space, urdf_path="CAD2URDF/V000/urdf/V000.urdf")
     env.spt = 1 / 240
 
     for epoch in range(100):

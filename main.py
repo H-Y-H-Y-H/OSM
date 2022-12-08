@@ -347,10 +347,8 @@ def train_agent_with_sm(env, model, log_path):
             np.savetxt(log_path + "/reward_each_eval.csv", np.asarray(r_m_each_epoch))
             model.save(log_path + "/model%d" % (epoch))
 
-
-
     np.savetxt(log_path + "/reward_mean.csv", np.asarray(r_m_each_epoch))
-    plt.errorbar(range(len(r_m_each_epoch)), r_m_each_epoch, r_s_each_epoch)
+    # plt.errorbar(range(len(r_m_each_epoch)), r_m_each_epoch, r_s_each_epoch)
 
 
 

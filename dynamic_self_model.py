@@ -221,14 +221,22 @@ def train_dyna_sm(train_dataset, test_dataset):
 
 
 if __name__ == "__main__":
+    import shutil
 
-    dof = 4
+    dof = 1004
     print("DOF:", dof)
     log_path = 'data/dof%d/sm_model/' % dof
     initial_para = np.loadtxt("controller100/control_para/para.csv")
-    para_space = np.loadtxt("controller100/control_para/dof%d/para_range.csv" % dof)
 
-    Train_flag = False
+    src = "controller100/control_para/dof8/para_range.csv"
+    para_dir = "controller100/control_para/dof%d/"% dof
+    os.makedirs(para_dir,exist_ok=True)
+    dst = para_dir+"para_range.csv"
+    shutil.copyfile(src, dst)
+
+    para_space = np.loadtxt(dst)
+
+    Train_flag = True
 
     mode = 5
 
@@ -247,7 +255,8 @@ if __name__ == "__main__":
         num_cycles = 100
         batchsize = 6
         lr = 1e-4
-        for sub_process in range(5, 10):
+        for sub_process in range(10):
+        # for sub_process in [9]:
             print('sub_process: ', sub_process)
             torch.manual_seed(sub_process)
 
