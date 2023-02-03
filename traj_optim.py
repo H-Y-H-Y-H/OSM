@@ -16,7 +16,7 @@ def hill_climber(env, para, s_path, epoch_num=5000, step_num_each_epoch=100, num
         para_batch = batch_random_para(para_batch)
         # Random all parameters for the rest 4 robots.
         for i in range(16, num_individual):
-            para_batch[i] = rand_para_gss(para_batch[i])
+            para_batch[i] = random_para()
 
         result_list = []
         logger_flag = False
@@ -29,7 +29,7 @@ def hill_climber(env, para, s_path, epoch_num=5000, step_num_each_epoch=100, num
                 obs = env.reset()
                 last_action = np.zeros(12)
                 for step in range(step_num_each_epoch):
-                    action = sin_move(step, para, debug=False)
+                    action = sin_move(step, para)
 
                     # action = np.random.normal(action, 0.2)
 
@@ -99,7 +99,7 @@ def play_back(env, para, noise, epoch_num, step_num=100):
     for i in range(epoch_num):
         env.reset()
         for step in range(step_num):
-            action = sin_move(step, para, debug=False)
+            action = sin_move(step, para)
 
             action = np.random.normal(loc=action, scale=[noise * 2,
                                                          noise,
@@ -142,7 +142,7 @@ def trajectory_optimization(env, save_path, para=None, Train=False, noise=0.0):
 
 if __name__ == '__main__':
 
-    TRAIN = False
+    TRAIN = True
 
     DOF = 12
     num_file = 0
@@ -152,20 +152,21 @@ if __name__ == '__main__':
     else:
         p.connect(p.GUI)
 
+    space = np.loadtxt("controller100/control_para/para_range.csv" )
     noise = 0
     if TRAIN:
-        sin_para = np.loadtxt("traj_optim/dataset/control_para/dof%d/%d.csv" % (DOF, 0))
+        sin_para = np.loadtxt("traj_optim/dataset/control_para/para.csv")
     else:
-        sin_para = np.loadtxt("traj_optim/dataset/control_para/dof%d/%d.csv" % (DOF, 0))
+        sin_para = np.loadtxt("traj_optim/dataset/control_para/para.csv")
 
-    env = OSM_Env(
+    env = OSM_Env(dof = 12, render=True, para = sin_para,noise_para=space,data_save_pth = None,
                   robot_camera=False,
                   urdf_path="../CADandURDF/robot_repo/V000/urdf/V000.urdf")
     # rand_pos= True, rand_torque= True,rand_fiction=True)
-    env.sleep_time = 0.
+    env.spt = 0.
     env.data_collection = True
 
-    save_path = "traj_optim/dataset/control_para%d/" % DOF
+    save_path = "traj_optim/dataset/control_para/"
 
     try:
         os.mkdir(save_path)
