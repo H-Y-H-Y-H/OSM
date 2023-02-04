@@ -216,7 +216,6 @@ def dof_to_RobotMotorIndex(dof):
     elif dof == 814:
         robot_actuated = [1, 2, 4, 5, 7, 8, 10, 11]
 
-
     elif dof == 1000:
         robot_actuated = [0, 2, 3, 4, 5, 6, 7, 8, 9, 11]
     elif dof == 1001:
@@ -237,6 +236,20 @@ def dof_to_RobotMotorIndex(dof):
 
 
 if __name__ == '__main__':
-    para_batch = np.array([random_para()] * 16)
-    batch_random_para(para_batch)
-    print(para_batch)
+    # para_batch = np.array([random_para()] * 16)
+    # batch_random_para(para_batch)
+    # print(para_batch)
+    dof = 600
+    ref = np.loadtxt('control_para/dof%d/para_range.csv'%dof)
+    # ref2 = np.loadtxt('control_para/dof%d/0.csv'%dof)
+    for i in range(1,20):
+        roboid = dof +i
+        control_v = np.loadtxt('control_para/dof%d/para_range.csv'%roboid)
+        # control_v2 = np.loadtxt('control_para/dof%d/0.csv'%roboid)
+        for j in range(len(ref)):
+            if ref[j] != control_v[j]:
+                print(roboid, ref,control_v)
+            # if ref2[j] != control_v2[j]:
+            #     print(ref2[j],control_v2[j])
+
+

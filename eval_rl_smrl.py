@@ -1,15 +1,32 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from controller100.control import *
-def plot_old():
 
-    dof_list = [
-    200, 201, 202, 203, 204,
-    400, 401, 402, 403, 404, 405, 406, 407, 408,
-    600, 601, 602, 603, 604, 605, 606, 607, 608, 609,
-    800, 801, 802, 803, 804, 805, 806,
-    1000, 1001, 1002, 1003, 1004
-    ]
+
+def remove_outliers(arr1):
+    # finding the 1st quartile
+    q1 = np.quantile(arr1, 0.25)
+
+    # finding the 3rd quartile
+    q3 = np.quantile(arr1, 0.75)
+    med = np.median(arr1)
+
+    # finding the iqr region
+    iqr = q3 - q1
+
+    # finding upper and lower whiskers
+    upper_bound = q3 + (1.5 * iqr)
+    lower_bound = q1 - (1.5 * iqr)
+    print(iqr, upper_bound, lower_bound)
+
+    outliers = arr1[(arr1 <= lower_bound) | (arr1 >= upper_bound)]
+    print('The following are the outliers in the boxplot:{}'.format(outliers))
+
+    return arr1[(arr1 >= lower_bound) & (arr1 <= upper_bound)]
+
+
+
+def plot_old():
 
     sm_r_m = np.loadtxt("paper_data/sm_r_m.csv")
     rl_r_m = np.loadtxt('paper_data/eval_rl_r_logger.csv')[:,0]
@@ -31,10 +48,9 @@ def plot_old():
 
 # plot_old()
 
-def plot_new():
+def plot_new(remove_outliers_data = 0):
     rl = np.loadtxt("paper_data/rl_baseline_logger.csv")
     sm_rl = np.loadtxt('paper_data/smrl_logger.csv')
-
 
     ratio_mean = []
     ratio_std = []
@@ -42,27 +58,42 @@ def plot_new():
     rl_mean = np.mean(rl, axis=1)
     sm_mean = np.mean(sm_rl, axis=1)
 
-    # list_sm = [(0,5),(5,14),(14,20),(25,33),(33,39),(39,41)]
-    list_sm = [(0,5),(5,14),(14,21),(21,29),(29,35),(35,36)]
-
-    # rl_mean_ = np.asarray(rl_mean[14:21])
-    # sm_mean_ = np.asarray(sm_mean[14:21])
-    # print(sm_mean_/rl_mean_)
-
     all_robot_ratio = sm_mean/rl_mean
+    print(all_robot_ratio)
+
+    all_robot_ratio = [all_robot_ratio[:5],
+                       all_robot_ratio[5:20],
+                       all_robot_ratio[20:40],
+                       all_robot_ratio[40:55],
+                       all_robot_ratio[55:60],
+                       [all_robot_ratio[60]]]
+
+
+    for k in range(5):
+        for _ in range(remove_outliers_data):
+            all_robot_ratio[k] = remove_outliers(all_robot_ratio[k])
+
+    scatter_x = []
+    for i in range(6):
+        num = len(all_robot_ratio[i])
+        for j in range(num):
+            scatter_x.append((i+1)*2)
 
     for i in range(6):
-        ratio_mean.append(np.mean(all_robot_ratio[list_sm[i][0]:list_sm[i][1]]))
-        ratio_std.append(np.std(all_robot_ratio[list_sm[i][0]:list_sm[i][1]]))
+        ratio_mean.append(np.mean(all_robot_ratio[i]))
+        ratio_std.append(np.std(all_robot_ratio[i])/np.sqrt(len(all_robot_ratio[i])))
 
-    # ratio_mean = np.asarray(ratio_mean)
-    # ratio_std = np.asarray(ratio_std)
-    print(ratio_mean)
+    all_robot_ratio = [j for sub in all_robot_ratio for j in sub]
+    plt.scatter(scatter_x, all_robot_ratio)
+
     plt.xlabel('Degree of freedom')
     plt.ylabel('Self-model/RL')
-    # plt.plot(range(2, 14, 2), ratio_mean)
+    plt.title("Remove outliers using Box plot : (%d times)"%remove_outliers_data)
     plt.errorbar(range(2, 14, 2), ratio_mean, yerr=ratio_std,fmt='ro-',ecolor='k')
-    plt.show()
+    plt.savefig('plots/smVSrl(%d).png'%remove_outliers_data)
     print(ratio_mean)
+    plt.cla()
 
-plot_new()
+for d in range(3):
+    plot_new(remove_outliers_data = d)
+

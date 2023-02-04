@@ -227,7 +227,7 @@ if __name__ == "__main__":
     p.connect(p.DIRECT)
 
     smrl_all_dof_r_logger = []
-    for dof in dof_list:
+    for dof in [12]:
         random.seed(2022)
         np.random.seed(2022)
         print("DOF:", dof)

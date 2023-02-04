@@ -27,12 +27,12 @@ def load_smrl_data():
             shutil.copy(src1, dst1)
             shutil.copy(src2, dst2)
         # break
-load_smrl_data()
+# load_smrl_data()
 
 def load_rl_data():
-    src = "/Users/yuhang/Downloads/OSM/OSM_onlyRL/data/"
+    src = "/Users/yuhang/Downloads/RL_model/rl_model/"
     dst = "data/"
-
+    dof_list = [12]
     for i in range(len(dof_list)):
         src_ = src + 'dof%d/RL_model/rl_model/' % dof_list[i]
         dst_ = dst + 'dof%d/RL_model/' % dof_list[i]
@@ -59,25 +59,7 @@ def load_rl_data():
             shutil.copy(src4, dst4)
             shutil.copy(src5, dst5)
         # break
-# load_rl_data()
-
-
-def search_usefixed_urdf_wrong_data():
-    all_reward = []
-    for i in range(len(dof_list)):
-        reward = []
-        for j in range(3):
-            data_pth = 'data/dof%d/RL_model/%d/r.csv'%(dof_list[i],j)
-            reward_list = np.loadtxt(data_pth)
-            reward.append(reward_list)
-            if reward_list[0] == reward_list[1]:
-                print(dof_list[i])
-            if reward_list[j] == 6:
-                print(dof_list[i])
-        all_reward.append(reward)
-    # print(all_reward)
-
-# search_usefixed_urdf_wrong_data()
+load_rl_data()
 
 
 import itertools
