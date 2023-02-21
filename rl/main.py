@@ -345,19 +345,19 @@ if __name__ == '__main__':
     name = "V000"
     sm_model = FastNN(18 + 16, 18)  # ,activation_fun="Relu"
     # RL training
-    Train_flag = True
+    Train_flag = False
     # Train_flag = False
     p.connect(p.DIRECT)
 
     rl_all_dof_data = []
-    for dof in [12]:
+    for dof in dof_list:
+
         print("DOF", dof)
         random.seed(2022)
         np.random.seed(2022)
         log_path = '../data/dof%d/' % (dof)
         inital_para = np.loadtxt("../controller100/control_para/para.csv")
-        para_space = np.loadtxt("../controller100/control_para/dof%d/para_range.csv" % dof)
-        print(inital_para, para_space)
+        para_space = np.loadtxt("../controller100/control_para/dof%d/para_range.csv" % (dof//100*100))
         os.makedirs(log_path, exist_ok=True)
 
         env = OSM_Env(dof, inital_para, para_space,
@@ -370,7 +370,7 @@ if __name__ == '__main__':
         for sub_process in range(3):
             print('sub_process', sub_process)
             torch.manual_seed(sub_process)
-            log_path_ = log_path + '/rl_model/%d/' % sub_process
+            log_path_ = log_path + '/RL_model/%d/' % sub_process
             os.makedirs(log_path_, exist_ok=True)
 
             if Train_flag:

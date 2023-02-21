@@ -4,7 +4,7 @@ from controller100.control import *
 
 
 def load_smrl_data():
-    src = "/Users/yuhang/Downloads/data_smrl/"
+    src = "C:/Users/yuhan/Downloads/OSM_onlySM/data/"
     dst = "data/"
 
     for i in range(len(dof_list)):
@@ -27,12 +27,12 @@ def load_smrl_data():
             shutil.copy(src1, dst1)
             shutil.copy(src2, dst2)
         # break
-# load_smrl_data()
+load_smrl_data()
 
 def load_rl_data():
-    src = "/Users/yuhang/Downloads/RL_model/rl_model/"
+    src = "C:/Users/yuhan/Downloads/OSM_onlyRL/data/"
     dst = "data/"
-    dof_list = [12]
+
     for i in range(len(dof_list)):
         src_ = src + 'dof%d/RL_model/rl_model/' % dof_list[i]
         dst_ = dst + 'dof%d/RL_model/' % dof_list[i]
