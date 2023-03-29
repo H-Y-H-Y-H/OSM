@@ -9,8 +9,7 @@ import time
 from controller100.control import *
 import pybullet as p
 
-random.seed(2022)
-np.random.seed(2022)
+
 
 if torch.cuda.is_available():
     device = 'cuda'
@@ -345,19 +344,30 @@ if __name__ == '__main__':
     name = "V000"
     sm_model = FastNN(18 + 16, 18)  # ,activation_fun="Relu"
     # RL training
+    # Train_flag = True
     Train_flag = False
-    # Train_flag = False
     p.connect(p.DIRECT)
 
     rl_all_dof_data = []
-    for dof in dof_list:
 
+    for dof in range(1201,1220):
         print("DOF", dof)
+
+        log_path = '../data/dof%d/' % (dof)
+        os.makedirs(log_path,exist_ok=True)
+        inital_para = np.loadtxt("../controller100/control_para/para.csv")
+
+        if dof >1200:
+            # para_space = np.random.normal(para_space, scale=0.05)
+            para_space = np.loadtxt(log_path + "para_range.csv")
+        else:
+            para_space = np.loadtxt("../controller100/control_para/para_range.csv")
+
+        # para_space = np.clip(para_space,0,1)
+        # np.savetxt(log_path + '/para_range.csv',para_space)
         random.seed(2022)
         np.random.seed(2022)
-        log_path = '../data/dof%d/' % (dof)
-        inital_para = np.loadtxt("../controller100/control_para/para.csv")
-        para_space = np.loadtxt("../controller100/control_para/dof%d/para_range.csv" % (dof//100*100))
+
         os.makedirs(log_path, exist_ok=True)
 
         env = OSM_Env(dof, inital_para, para_space,

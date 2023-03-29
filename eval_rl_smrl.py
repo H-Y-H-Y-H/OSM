@@ -25,29 +25,6 @@ def remove_outliers(arr1):
     return arr1[(arr1 >= lower_bound) & (arr1 <= upper_bound)]
 
 
-
-def plot_old():
-
-    sm_r_m = np.loadtxt("paper_data/sm_r_m.csv")
-    rl_r_m = np.loadtxt('paper_data/eval_rl_r_logger.csv')[:,0]
-
-    result = [0]*5
-    ratio = sm_r_m/rl_r_m
-    print(ratio)
-
-    dof_ratio = [np.mean(np.append(ratio[:5]   ,1.25)),
-                 np.mean(np.append(ratio[5:14] ,1.35)),
-                 np.mean(np.append(ratio[14:22],1.42)),
-                 np.mean(np.append(ratio[29:36],1.43)),
-                 np.mean(np.append(ratio[36:41],1.63)),
-                 1.8]
-    plt.xlabel('Degree of freedom')
-    plt.ylabel('Self-model/RL')
-    plt.plot(range(2, 14, 2), dof_ratio)
-    # plt.show()
-
-# plot_old()
-
 def plot_new(remove_outliers_data = 0):
     rl = np.loadtxt("paper_data/rl_baseline_logger.csv")
     sm_rl = np.loadtxt('paper_data/smrl_logger.csv')
@@ -66,10 +43,10 @@ def plot_new(remove_outliers_data = 0):
                        all_robot_ratio[20:40],
                        all_robot_ratio[40:55],
                        all_robot_ratio[55:60],
-                       [all_robot_ratio[60]]]
+                       all_robot_ratio[60:80]]
 
 
-    for k in range(5):
+    for k in range(6):
         for _ in range(remove_outliers_data):
             all_robot_ratio[k] = remove_outliers(all_robot_ratio[k])
 

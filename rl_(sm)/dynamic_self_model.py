@@ -227,7 +227,7 @@ if __name__ == "__main__":
     p.connect(p.DIRECT)
 
     smrl_all_dof_r_logger = []
-    for dof in dof_list:
+    for dof in range(1201,1220):
 
         random.seed(2022)
         np.random.seed(2022)
@@ -235,9 +235,12 @@ if __name__ == "__main__":
         log_path = '../data/dof%d/smrl_model/' % dof
         os.makedirs(log_path,exist_ok=True)
         initial_para = np.loadtxt("../controller100/control_para/para.csv")
-        para_dir = "../controller100/control_para/dof%d/"% ((dof//100)*100)
-        dst = para_dir+"para_range.csv"
-        para_space = np.loadtxt(dst)
+        if dof>1200:
+            para_dir = "../data/dof%d/"% (dof)
+            para_space = np.loadtxt(para_dir+"para_range.csv")
+        else:
+            para_space = np.loadtxt("../controller100/control_para/para_range.csv")
+
 
         if mode != 5:
             env = OSM_Env(dof, initial_para, para_space,

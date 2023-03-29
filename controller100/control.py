@@ -230,6 +230,8 @@ def dof_to_RobotMotorIndex(dof):
         robot_actuated = [0, 1, 3, 4, 5, 6, 7, 8, 9, 10]
     elif dof == 1200:
         robot_actuated = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+    elif dof//100 == 12:
+        robot_actuated = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
 
     else:
         robot_actuated = None
