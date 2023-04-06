@@ -36,8 +36,11 @@ def plot_new(remove_outliers_data = 0):
     sm_mean = np.mean(sm_rl, axis=1)
 
     all_robot_ratio = sm_mean/rl_mean
-    print(all_robot_ratio)
+    # print(all_robot_ratio)
 
+    # rank_12dof = np.flip(np.argsort(all_robot_ratio[62:110])+62)
+    # print(rank_12dof[1:20]-60)
+    # all_robot_ratio[62:80] = all_robot_ratio[rank_12dof[1:19]]
     all_robot_ratio = [all_robot_ratio[:5],
                        all_robot_ratio[5:20],
                        all_robot_ratio[20:40],

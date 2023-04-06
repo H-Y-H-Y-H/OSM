@@ -224,10 +224,11 @@ if __name__ == "__main__":
 
     Train_flag = False
     mode = 5
-    p.connect(p.GUI)
+    p.connect(p.DIRECT)
 
     smrl_all_dof_r_logger = []
-    for dof in range(1201,1220):
+    start_id = 1230
+    for dof in range(1200,1220):
 
         random.seed(2022)
         np.random.seed(2022)
@@ -486,7 +487,7 @@ if __name__ == "__main__":
                     data_logger.append(r)
 
             smrl_all_dof_r_logger.append(data_logger)
-            # np.savetxt("../paper_data/smrl_logger.csv", np.asarray(smrl_all_dof_r_logger))
+            np.savetxt("../paper_data/smrl_logger.csv", np.asarray(smrl_all_dof_r_logger))
 
 
 

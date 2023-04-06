@@ -71,7 +71,8 @@ def train_agent(epoch_num=6400, num_step_for_eval=300):
 
             np.savetxt(log_path + "/reward_mean.csv", np.asarray(r_m_each_epoch))
             np.savetxt(log_path + "/reward_std.csv", np.asarray(r_s_each_epoch))
-            model.save(log_path + "/model/model%d" % (epoch + 1))
+            if (epoch + 1) == 50 or (epoch + 1) == 100:
+                model.save(log_path + "/model/model%d" % (epoch + 1))
 
     np.savetxt(log_path + "/reward_mean.csv", np.asarray(r_m_each_epoch))
     np.savetxt(log_path + "/reward_std.csv", np.asarray(r_s_each_epoch))
