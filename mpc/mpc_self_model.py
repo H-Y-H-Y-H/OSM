@@ -1,5 +1,6 @@
-from main import *
+from mpc_main import *
 from controller100.control import *
+
 random.seed(2022)
 np.random.seed(2022)
 
@@ -48,9 +49,14 @@ def collect_dyna_sm_data(step_num, use_policy, choose_a, num_candidate=1000):
             pred_ns = sm_model.forward(S_array, A_array)
             pred_ns_numpy = pred_ns[0].cpu().detach().numpy()
 
-
             # Task:
-            all_a_rewards = 3 * pred_ns_numpy[:, 1] - abs(pred_ns_numpy[:, 5]) - 0.5 * abs(pred_ns_numpy[:, 0])
+            a = np.random.uniform(1,3)
+            b = np.random.uniform(1,2)
+            c = np.random.uniform(0,1)
+
+            all_a_rewards = a * pred_ns_numpy[:, 1] -b* abs(pred_ns_numpy[:, 5]) - c * abs(pred_ns_numpy[:, 0])
+
+            # all_a_rewards = 3 * pred_ns_numpy[:, 1] - abs(pred_ns_numpy[:, 5]) - 0.5 * abs(pred_ns_numpy[:, 0])
 
             greedy_select = int(np.argmax(all_a_rewards))
             if greedy_select > 500:  # new random action
@@ -149,7 +155,7 @@ class SAS_data(Dataset):
         # return [self.all_S, self.all_A, self.all_NS, self.all_R]
 
 
-def train_dyna_sm(train_dataset, test_dataset,log_pth):
+def train_dyna_sm(train_dataset, test_dataset, log_pth):
     min_loss = + np.inf
     abort_learning = 0
     decay_lr = 0
@@ -182,7 +188,7 @@ def train_dyna_sm(train_dataset, test_dataset,log_pth):
         sm_model.eval()
         with torch.no_grad():
             for batch in valid_dataloader:
-                S, A, NS,DONE = batch["S"], batch["A"], batch["NS"], batch['DONE']
+                S, A, NS, DONE = batch["S"], batch["A"], batch["NS"], batch['DONE']
                 pred_NS = sm_model.forward(S, A)
                 loss = sm_model.loss(pred_NS, NS)
                 valid_L.append(loss.item())
@@ -222,26 +228,24 @@ def train_dyna_sm(train_dataset, test_dataset,log_pth):
 
 if __name__ == "__main__":
 
-    Train_flag = False
-    mode = 5
-    p.connect(p.GUI)
+    Train_flag = True
+    mode = 2
+    p.connect(p.DIRECT)
 
     smrl_all_dof_r_logger = []
-    start_id = 1230
-    for dof in dof_list:
+    for dof in range(1200, 1201):
 
         random.seed(2022)
         np.random.seed(2022)
         print("DOF:", dof)
-        log_path = '../data/dof%d/smrl_model/' % dof
-        os.makedirs(log_path,exist_ok=True)
+        log_path = 'mpc_data/dof%d/smrl_model/' % dof
+        os.makedirs(log_path, exist_ok=True)
         initial_para = np.loadtxt("../controller100/control_para/para.csv")
-        if dof>1200:
-            para_dir = "../data/dof%d/"% (dof)
-            para_space = np.loadtxt(para_dir+"para_range.csv")
+        if dof > 1200:
+            para_dir = "../data/dof%d/" % (dof)
+            para_space = np.loadtxt(para_dir + "para_range.csv")
         else:
             para_space = np.loadtxt("../controller100/control_para/para_range.csv")
-
 
         if mode != 5:
             env = OSM_Env(dof, initial_para, para_space,
@@ -254,18 +258,19 @@ if __name__ == "__main__":
             NUM_EACH_CYCLE = 6
             batchsize = 6
             lr = 1e-4
-            for sub_process in range(3):
+            for sub_process in range(2, 3):
                 print('sub_process: ', sub_process)
                 torch.manual_seed(sub_process)
 
                 sm_model = FastNN(18 + 16, 18)
                 sm_model.to(device)
                 log_path_ = log_path + "sm_model/%d/" % sub_process
-                os.makedirs(log_path_,exist_ok=True)
+                os.makedirs(log_path_, exist_ok=True)
 
                 optimizer = torch.optim.Adam(sm_model.parameters(), lr=lr)
                 choose_a = np.random.uniform(-1, 1, size=16)
-                train_SAS, test_SAS, choose_a, sele_list, DONE = collect_dyna_sm_data(step_num=NUM_EACH_CYCLE, use_policy=0,
+                train_SAS, test_SAS, choose_a, sele_list, DONE = collect_dyna_sm_data(step_num=NUM_EACH_CYCLE,
+                                                                                      use_policy=0,
                                                                                       choose_a=choose_a)
                 train_data = SAS_data(SAS_data=train_SAS)
                 test_data = SAS_data(SAS_data=test_SAS)
@@ -274,11 +279,11 @@ if __name__ == "__main__":
                 log_action_choose = []
                 t2 = 0
                 t1 = 0
-                for epoch_i in range(100):
+                for epoch_i in range(10000):
 
-                    print(epoch_i, "time used: ", t2-t1)
+                    print(epoch_i, "time used: ", t2 - t1)
                     t1 = time.time()
-                    sm_train_valid_loss = train_dyna_sm(train_data, test_data,log_path_)
+                    sm_train_valid_loss = train_dyna_sm(train_data, test_data, log_path_)
 
                     train_SAS, test_SAS, choose_a, sub_sele_list, DONE = collect_dyna_sm_data(step_num=NUM_EACH_CYCLE,
                                                                                               use_policy=1,
@@ -391,7 +396,6 @@ if __name__ == "__main__":
             # NUM_EACH_CYCLE = 6
             # mean_list = []
 
-
             # epoch_num = 1000
             # sub_process = 5
             # sub_log_path = log_path + "train/%ddata/CYECLE_%d/%d/" % (epoch_num, NUM_EACH_CYCLE, sub_process)
@@ -407,25 +411,21 @@ if __name__ == "__main__":
             # plt.show()
 
         if mode == 2:
-            sub_process = 9
-            NUM_EACH_CYCLE = 6
+            sub_process = 2
             torch.manual_seed(sub_process)
-
-            sub_log_path = log_path + "train/100data/CYCLE_%d/%d/" % (NUM_EACH_CYCLE, sub_process)
+            sub_log_path = log_path + "sm_model/%d/" % sub_process
             sm_model = FastNN(18 + 16, 18)
             sm_model.to(device)
 
-            data_num = 100
-            sm_model.load_state_dict(torch.load(sub_log_path + 'model_%d' % data_num, map_location=torch.device(device)))
+            data_num = 500
+            sm_model.load_state_dict(
+                torch.load(sub_log_path + 'model_%d' % data_num, map_location=torch.device(device)))
             # sm_model.load_state_dict(torch.load(sub_log_path + 'best_model.pt', map_location=torch.device(device)))
 
-            log_path += '/test/'
-            try:
-                os.mkdir(log_path)
-            except OSError:
-                pass
-            # env.spt = 1 / 120
-            test_sm(sm_model, env, log_path, TASK='f', eval_epoch_num=10)
+            sub_log_path += '/mpc_test_data%d/'%data_num
+            os.makedirs(sub_log_path, exist_ok=True)
+
+            test_sm(sm_model, env, sub_log_path, TASK='f', eval_epoch_num=1000)
 
         # Show pred plots
         if mode == 4:
@@ -476,7 +476,7 @@ if __name__ == "__main__":
                 sm_model.eval()
 
                 env = OSM_Env(dof, initial_para, para_space, urdf_path="../CAD2URDF/V000/urdf/V000.urdf",
-                              data_save_pth=None, sm_world=sm_model,sub_process = sub_process)
+                              data_save_pth=None, sm_world=sm_model, sub_process=sub_process)
 
                 if Train_flag:
                     model = PPO("MlpPolicy", env, n_steps=6, verbose=0, batch_size=6)
@@ -489,9 +489,3 @@ if __name__ == "__main__":
 
             smrl_all_dof_r_logger.append(data_logger)
             np.savetxt("../paper_data/smrl_logger.csv", np.asarray(smrl_all_dof_r_logger))
-
-
-
-
-
-

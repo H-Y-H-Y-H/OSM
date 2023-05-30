@@ -14,9 +14,9 @@ else:
 
 class OSM_Env(gym.Env):
     def __init__(self, dof, para, noise_para, data_save_pth, robot_camera=False, urdf_path='CAD2URDF',
-                 sm_world=None):
+                 sm_world=None,sub_process=0):
         self.save_pth = data_save_pth  # save SAS data
-        self.spt = 0  # 1/2000  # decrease the value if it is too slow.
+        self.spt =  1/2000  # decrease the value if it is too slow.
         self.robotid = None
         self.v_p = None
         self.q = None
@@ -51,6 +51,7 @@ class OSM_Env(gym.Env):
 
         self.sm_model = sm_world
         self.sm_model_world = False
+        self.sub_process = sub_process
 
         self.action_space = gym.spaces.Box(low=-np.ones(16), high=np.ones(16))
         self.observation_space = gym.spaces.Box(low=-np.ones(18) * np.inf, high=np.ones(18) * np.inf)
@@ -59,6 +60,7 @@ class OSM_Env(gym.Env):
         self.count = 0
 
         p.setAdditionalSearchPath(pd.getDataPath())
+
 
     def get_obs(self):
         self.last_p = self.p
@@ -81,8 +83,6 @@ class OSM_Env(gym.Env):
         if not self.sm_model_world:
             self.obs = np.concatenate([self.v_p, self.q, jointVals])
 
-        # print(np.mean((self.obs - new_obs)**2))
-
         else:
             # Delta position and orientation
             real_obs = np.concatenate([self.v_p, self.q, jointVals])
@@ -95,8 +95,6 @@ class OSM_Env(gym.Env):
             new_obs = new_obs[0].cpu().detach().numpy()
 
             self.sm_pred_error_list.append(np.mean((real_obs - new_obs) ** 2))
-            # new_obs = np.copy(real_obs)
-
             self.last_last_obs = np.copy(self.last_obs)
             self.last_obs = np.copy(self.obs)
             self.obs = np.copy(new_obs)
@@ -131,7 +129,49 @@ class OSM_Env(gym.Env):
                         basePos_list = [basePos[0], basePos[1], 0.3]
                         p.resetDebugVisualizerCamera(cameraDistance=1, cameraYaw=75, cameraPitch=-20,
                                                      cameraTargetPosition=basePos_list)  # fix camera onto model
-            time.sleep(self.spt)
+
+            #     if i%10 ==0:
+            #         time.sleep(self.spt)
+            # text_id = p.addUserDebugText("Robot: %d, n: %d"%(self.dof,self.sub_process), [0.2, 0, 1],
+            #                              lifeTime=0,
+            #                              textSize=2,
+            #                              textColorRGB=[0, 0, 0])
+            jointInfo = [p.getJointState(self.robotid, i) for i in range(12)]
+            jointVals = np.array([[joint[0]] for joint in jointInfo]).flatten()
+            self.log_obs.append(jointVals)
+
+
+    def non_dyan_act(self, action):
+
+
+        for i in range(12):
+            if i in self.robot_actuated:
+                pos_value = action[i]
+            else:
+                pos_value = self.initial_values[i]
+
+            p.setJointMotorControl2(self.robotid, i, controlMode=self.mode, targetPosition=pos_value,
+                                    force=self.force,
+                                    maxVelocity=self.maxVelocity)
+
+            for i in range(self.n_sim_steps):
+                p.stepSimulation()
+
+                if self.render:
+                    # Capture Camera
+                    if self.camera_capture == True:
+                        basePos, baseOrn = p.getBasePositionAndOrientation(self.robotid)  # Get model position
+                        basePos_list = [basePos[0], basePos[1], 0.3]
+                        p.resetDebugVisualizerCamera(cameraDistance=1, cameraYaw=75, cameraPitch=-20,
+                                                     cameraTargetPosition=basePos_list)  # fix camera onto model
+            #     if i%10 ==0:
+            #         time.sleep(self.spt)
+            # text_id = p.addUserDebugText("Robot: %d, n: %d"%(self.dof,self.sub_process), [0.2, 0, 1],
+            #                              lifeTime=0,
+            #                              textSize=2,
+            #                              textColorRGB=[0, 0, 0])
+
+
 
     def reset(self):
         p.resetSimulation()
@@ -142,7 +182,8 @@ class OSM_Env(gym.Env):
 
         robotStartPos = [0, 0, 0.22]
         robotStartOrientation = p.getQuaternionFromEuler([0, 0, 0])
-
+        p.resetDebugVisualizerCamera(cameraDistance=1.5, cameraYaw=95, cameraPitch=-20,
+                                     cameraTargetPosition=[0, 0.3, 0.22])  # fix camera onto model
         self.robotid = p.loadURDF(self.urdf_path, robotStartPos, robotStartOrientation, flags=p.URDF_USE_SELF_COLLISION,
                                   useFixedBase=0)
         p.changeDynamics(self.robotid, 2, lateralFriction=self.friction)
@@ -202,8 +243,35 @@ class OSM_Env(gym.Env):
         if Done:
             r -=2
 
-        self.log_obs.append(obs)
-        self.log_action.append(a)
+        # self.log_obs.append(obs)
+        # self.log_action.append(a)
+
+        # if (self.count % 100 == 0) and (self.save_pth != None):
+        #     np.savetxt(self.save_pth + "/log_obs.csv", np.asarray(self.log_obs))
+        #     np.savetxt(self.save_pth + "/log_action.csv", np.asarray(self.log_action))
+        #     np.save(self.save_pth + "/log_pred_error_every_epoch.npy", np.asarray(self.sm_pred_error_list))
+        self.count += 1
+
+        return obs, r, Done, {}
+
+    def non_dyna_step(self, action):
+
+        action = np.clip(action, -1, 1)
+        action *= self.motor_action_space
+        self.non_dyan_act(action)
+        obs = self.get_obs()
+
+        pos, _ = self.robot_location()
+        r = 3 * obs[1] - abs(obs[5]) - 0.5 * abs(obs[0]) + 1
+
+        # r -= np.mean((self.choose_a - a) ** 2) * 0.1
+
+        Done = self.check()
+        if Done:
+            r -=2
+
+        # self.log_obs.append(obs)
+        # self.log_action.append(a)
 
         # if (self.count % 100 == 0) and (self.save_pth != None):
         #     np.savetxt(self.save_pth + "/log_obs.csv", np.asarray(self.log_obs))

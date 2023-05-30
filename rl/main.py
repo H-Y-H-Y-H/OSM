@@ -82,13 +82,13 @@ if __name__ == '__main__':
     # RL training
     # Train_flag = True
     Train_flag = False
-    p.connect(p.DIRECT)
+    p.connect(p.GUI)
     rl_all_dof_data = []
 
     mode = 0
     if mode == 0:
         start_id = 1230
-        for dof in range(1200, 1220):
+        for dof in dof_list:
             print("DOF", dof)
 
             log_path = '../data/dof%d/' % (dof)
@@ -160,7 +160,7 @@ if __name__ == '__main__':
 
             env = OSM_Env(dof, inital_para, para_space,
                           data_save_pth=log_path,
-                          urdf_path="../CAD2URDF/V000/urdf/V000.urdf")
+                          urdf_path="../CAD2URDF/V000/urdf/V000.urdf",sub_process = sub_process)
 
             sub_logger_r = []
             sub_logger_y = []
