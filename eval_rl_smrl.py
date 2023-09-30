@@ -61,10 +61,15 @@ def plot_new(remove_outliers_data = 0):
 
     for i in range(6):
         ratio_mean.append(np.mean(all_robot_ratio[i]))
-        ratio_std.append(np.std(all_robot_ratio[i])/np.sqrt(len(all_robot_ratio[i])))
+        # ratio_std.append(np.std(all_robot_ratio[i])/np.sqrt(len(all_robot_ratio[i])))
+        ratio_std.append(np.std(all_robot_ratio[i]))
 
     all_robot_ratio = [j for sub in all_robot_ratio for j in sub]
     plt.scatter(scatter_x, all_robot_ratio)
+
+    save_array = np.concatenate(([scatter_x],[all_robot_ratio])).T
+    np.savetxt('paper_data_(%d).csv'%remove_outliers_data,save_array)
+
 
     plt.xlabel('Degree of freedom')
     plt.ylabel('Self-model/RL')
@@ -72,8 +77,26 @@ def plot_new(remove_outliers_data = 0):
     plt.errorbar(range(2, 14, 2), ratio_mean, yerr=ratio_std,fmt='ro-',ecolor='k')
     plt.savefig('plots/smVSrl(%d).png'%remove_outliers_data)
     print(ratio_mean)
+    print(ratio_std)
     plt.cla()
 
-for d in range(3):
+    # calculate_R_2
+    actual = range(2, 14, 2)
+    predict = ratio_mean
+    corr_matrix = np.corrcoef(actual, predict)
+    corr = corr_matrix[0, 1]
+    R_sq = corr ** 2
+    print(R_sq)
+
+
+for d in range(2):
     plot_new(remove_outliers_data = d)
+    # 0.9255627291353218
+    # 0.9399898103316614
+    # 0.9399898103316614
+
+
+
+
+
 

@@ -39,7 +39,7 @@ def evaluate_RL(eval_env, model, steps_each_episode=6):
     print("rewards", episode_rewards)
     print("Y", pos[1])
 
-    return episode_rewards, pos[1]
+    return episode_rewards, pos[1],action_list
 
 
 def train_agent(epoch_num=6400, num_step_for_eval=300):
@@ -482,7 +482,7 @@ if __name__ == '__main__':
             train_agent_with_sm(env, model, log_path)
         else:
             model = PPO.load(log_path + "best_model", env)
-            mean_reward_before_train, std_reward_before_train = evaluate_RL(env, model, num_episodes=20)
+            mean_reward_before_train, std_reward_before_train,action_list = evaluate_RL(env, model, num_episodes=20)
 
     if mode == 6:
         data_num = 600 * (2 ** 6)

@@ -1,3 +1,5 @@
+import numpy as np
+
 from main import *
 from controller100.control import *
 random.seed(2022)
@@ -224,11 +226,13 @@ if __name__ == "__main__":
 
     Train_flag = False
     mode = 5
-    p.connect(p.DIRECT)
+    p.connect(p.GUI)
+    # all_robots_list = list(range(200,205)) + list(range(400,415)) + list(range(600,620)) +\
+    #                   list(range(800,815)) + list(range(1000,1005)) +list(range(1200,1220))
 
     smrl_all_dof_r_logger = []
     start_id = 1230
-    for dof in range(1200,1220):
+    for dof in range(1000,1005):
 
         random.seed(2022)
         np.random.seed(2022)
@@ -458,6 +462,7 @@ if __name__ == "__main__":
             NUM_EACH_CYCLE = 6
             data_num1 = 100
             data_logger = []
+            action_list_logger = []
             for sub_process in range(3):
                 print("sub_process", sub_process)
                 torch.manual_seed(sub_process)
@@ -477,18 +482,21 @@ if __name__ == "__main__":
 
                 env = OSM_Env(dof, initial_para, para_space, urdf_path="../CAD2URDF/V000/urdf/V000.urdf",
                               data_save_pth=None, sm_world=sm_model)
-
+                env.spt = 1/960
                 if Train_flag:
                     model = PPO("MlpPolicy", env, n_steps=6, verbose=0, batch_size=6)
                     train_agent_with_sm(env, model, smrl_model_path)
                 else:
                     model = PPO.load(smrl_model_path + "best_model", env)
-                    r, y = evaluate_RL(env, model)
+                    r, y,action_list = evaluate_RL(env, model)
                     data_logger.append(r)
+                    action_list_logger.append(action_list)
+
 
             smrl_all_dof_r_logger.append(data_logger)
-            np.savetxt("../paper_data/smrl_logger.csv", np.asarray(smrl_all_dof_r_logger))
-
+            # np.savetxt("../paper_data/smrl_logger.csv", np.asarray(smrl_all_dof_r_logger))
+            action_list_logger = np.concatenate(action_list_logger,axis=0)
+            # np.savetxt('../real_world_test/log_action_%d.csv'%dof,action_list_logger)
 
 
 
