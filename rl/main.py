@@ -38,7 +38,7 @@ def evaluate_RL(eval_env, model, steps_each_episode=6):
     print("rewards", episode_rewards)
     print("Y", pos[1])
 
-    return episode_rewards, pos[1],action_list
+    return episode_rewards, pos[1]
 
 
 def train_agent(log_path_, epoch_num=6400, num_step_for_eval=300):
@@ -78,20 +78,17 @@ def train_agent(log_path_, epoch_num=6400, num_step_for_eval=300):
 if __name__ == '__main__':
 
     name = "V000"
-
+    sm_model = FastNN(18 + 16, 18)  # ,activation_fun="Relu"
     # RL training
     # Train_flag = True
     Train_flag = False
-    p.connect(p.GUI)
+    p.connect(p.DIRECT)
     rl_all_dof_data = []
-
-    all_robots_list = list(range(200,205)) + list(range(400,415)) + list(range(600,620)) +\
-                      list(range(800,815)) + list(range(1000,1005)) +list(range(1200,1220))
 
     mode = 0
     if mode == 0:
         start_id = 1230
-        for dof in all_robots_list:
+        for dof in range(1200, 1220):
             print("DOF", dof)
 
             log_path = '../data/dof%d/' % (dof)
@@ -120,7 +117,7 @@ if __name__ == '__main__':
 
             sub_logger_r = []
             sub_logger_y = []
-            action_list_logger = []
+
             for sub_process in range(3):
                 print('sub_process', sub_process)
                 torch.manual_seed(sub_process)
@@ -131,17 +128,15 @@ if __name__ == '__main__':
                     model = PPO("MlpPolicy", env, n_steps=6, verbose=0, batch_size=6)
                     train_agent(log_path_, epoch_num=100)
                 else:
-                    model = PPO.load("%s/model/best_model" % (log_path_))
-                    r, y, action_list = evaluate_RL(env, model)
+                    model = PPO.load("%s/model/best_model" % (log_path_), env)
+                    r, y = evaluate_RL(env, model)
                     sub_logger_r.append(r)
                     sub_logger_y.append(y)
-                    action_list_logger.append(action_list)
 
             if not Train_flag:
                 rl_all_dof_data.append(sub_logger_r)
-                # np.savetxt('../paper_data/rl_baseline_logger.csv', np.asarray(rl_all_dof_data))
-                # action_list_logger = np.concatenate(action_list_logger, axis=0)
-                # np.savetxt('../real_world_test_rl_%d.csv'%dof,action_list_logger)
+                np.savetxt('../paper_data/rl_baseline_logger.csv', np.asarray(rl_all_dof_data))
+
     if mode == 1:
         for dof in range(1200, 1220):
             print("DOF", dof)

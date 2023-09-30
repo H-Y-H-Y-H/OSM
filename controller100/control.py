@@ -238,22 +238,25 @@ def dof_to_RobotMotorIndex(dof):
 
     return robot_actuated
 
+# for dof_i in dof_list:
+#     print(dof_to_RobotMotorIndex(dof_i))
 
-if __name__ == '__main__':
-    # para_batch = np.array([random_para()] * 16)
-    # batch_random_para(para_batch)
-    # print(para_batch)
-    dof = 600
-    ref = np.loadtxt('control_para/dof%d/para_range.csv'%dof)
-    # ref2 = np.loadtxt('control_para/dof%d/0.csv'%dof)
-    for i in range(1,20):
-        roboid = dof +i
-        control_v = np.loadtxt('control_para/dof%d/para_range.csv'%roboid)
-        # control_v2 = np.loadtxt('control_para/dof%d/0.csv'%roboid)
-        for j in range(len(ref)):
-            if ref[j] != control_v[j]:
-                print(roboid, ref,control_v)
-            # if ref2[j] != control_v2[j]:
-            #     print(ref2[j],control_v2[j])
+
+# if __name__ == '__main__':
+#     # para_batch = np.array([random_para()] * 16)
+#     # batch_random_para(para_batch)
+#     # print(para_batch)
+#     dof = 600
+#     ref = np.loadtxt('control_para/dof%d/para_range.csv'%dof)
+#     # ref2 = np.loadtxt('control_para/dof%d/0.csv'%dof)
+#     for i in range(1,20):
+#         roboid = dof +i
+#         control_v = np.loadtxt('control_para/dof%d/para_range.csv'%roboid)
+#         # control_v2 = np.loadtxt('control_para/dof%d/0.csv'%roboid)
+#         for j in range(len(ref)):
+#             if ref[j] != control_v[j]:
+#                 print(roboid, ref,control_v)
+#             # if ref2[j] != control_v2[j]:
+#             #     print(ref2[j],control_v2[j])
 
 
